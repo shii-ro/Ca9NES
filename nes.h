@@ -79,14 +79,18 @@ struct NES
 
 struct NES *nes_init();
 void cart_load_rom(struct NES *n, char *romname);
-void cpu_tick(struct NES *n);
-u16 cpu_u16(struct NES *n);
+
 void mmu_load_rom(struct NES *n);
 u8 mmu_read_byte(struct NES *n, u16 addr);
+void mmu_write_byte(struct NES *n, u16 addr, u8 value);
 
+void cpu_tick(struct NES *n);
+u16 cpu_u16(struct NES *n);
 u8 cpu_pull8(struct NES *n);
 u16 cpu_pull16(struct NES *n);
 void cpu_push8(struct NES *n, u8 value);
 void cpu_push16(struct NES *n, u16 value);
 void cpu_instr_jmp(struct NES *n, u16 addr);
-void cpu_instr_ldx(struct NES *n, u8 value);
+void cpu_instr_ldr(struct NES *n, u8 value, u8 *reg);
+void cpu_instr_inr(struct NES *n, u8* reg);
+void cpu_instr_der(struct NES *n, u8 *reg);
