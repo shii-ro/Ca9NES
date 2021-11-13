@@ -7,7 +7,7 @@ int main(int argc, char **argv)
 {
     if (argc != 2 || argv[1] == NULL)
     {
-        printf("Usage: ./nes romname");
+        printf("Usage: ./nes romname\n");
         return 1;
     }
     struct NES *n = nes_init();
