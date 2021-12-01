@@ -1,96 +1,142 @@
-#define NES_MEM_SIZE 0x10000
-#define NES_INTERNAL_RAM_SIZE 0x0800
-#define NES_RAM_MIRROR_SIZE 0x1800
-#define NES_PPU_REGISTERS_SIZE 0x08
-#define NES_PPU_MIRROR_SIZE 0x1FF8
-#define NES_IO_REGISTERS_SIZE 0x0187
-#define NES_DISABLED_IO_SIZE 0x08
-#define NES_CARTRIDGE_SIZE 0xBFE0
-#include <stdint.h>
+#ifndef NES_H
+#define NES_H
+
+#include "common.h"
 #include <stdbool.h>
-#include <string.h>
+#include <SDL2/SDL.h>
 
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef int8_t i8;
-
-
-/////////////////////////////////////////////////////
-
-struct CPU
+struct cpu
 {
     struct
     {
-        union
-        {
-            u16 PC; // Program Counter
-            struct
-            {
-                u8 PCL, PCH;
-            };
-        };
-        u8 X, Y; // Index Registers
-        u8 S;    // Status Register
-        u8 SP;   // Stack Pointer
-        u8 A;   // Accumulator
+        u8 a;
+        u8 x;
+        u8 y;
+        u8 s;
+        u8 sp;
+        u16 pc;
     } registers;
-};
-#define STATUS_NEGATIVE 0b10000000
-#define STATUS_OVERFLOW 0b01000000
-#define STATUS_DECIMAL  0b00001000
-#define STATUS_ID       0b00000100
-#define STATUS_ZERO     0b00000010
-#define STATUS_CARRY    0b00000001
-
-
-//////////////////////////////////////////////////////////////////
-
-#define CART_HEADER_PRG_SIZE 4
-#define CART_HEADER_CHR_SIZE 5
-#define CART_HEADER_SIZE 0x10
-#define CART_PRG_ROM_SIZE 0x4000
-#define CART_CHR_ROM_SIZE 0x2000
-
-struct Cart
-{
-    u8 header[CART_HEADER_SIZE];
-    u8 *PRG_ROM;
-    u8 *CHR_ROM;
-};
-
-///////////////////////////////////////////////////////////////
-
-#define PPU_MMAP_START_ADDR 0x0000
-#define CPU_MMAP_START_ADDR 0x8000
-
-struct MMU
-{
-    u8 memory[NES_MEM_SIZE];
-};
-
-
-struct NES
-{
-    struct CPU cpu;
-    struct MMU mmu;
-    struct Cart cart;
+    u8 cycles;
     bool uoc;
 };
 
-struct NES *nes_init();
-void cart_load_rom(struct NES *n, char *romname);
+// VECTORS
+#define NMI_VECTOR 0xFFFA
+#define RESET_VECTOR 0xFFFC
+#define IRQ_BRK_VECTOR 0xFFFE
 
-void mmu_load_rom(struct NES *n);
-u8 mmu_read_byte(struct NES *n, u16 addr);
-void mmu_write_byte(struct NES *n, u16 addr, u8 value);
+// FLAGS MAKS
+#define STATUS_NEGATIVE 0x80
+#define STATUS_OVERFLOW 0x40
+#define STATUS_DECIMAL 0x8
+#define STATUS_ID 0x4
+#define STATUS_ZERO 0x2
+#define STATUS_CARRY 0x1
 
-void cpu_tick(struct NES *n);
-u16 cpu_u16(struct NES *n);
-u8 cpu_pull8(struct NES *n);
-u16 cpu_pull16(struct NES *n);
-void cpu_push8(struct NES *n, u8 value);
-void cpu_push16(struct NES *n, u16 value);
-void cpu_instr_jmp(struct NES *n, u16 addr);
-void cpu_instr_ldr(struct NES *n, u8 value, u8 *reg);
-void cpu_instr_inr(struct NES *n, u8* reg);
-void cpu_instr_der(struct NES *n, u8 *reg);
+
+
+// The PPU addresses a 16kB space, $0000-3FFF, completely separate from the CPU's address bus.
+// It is either directly accessed by the PPU itself,or via the CPU with memory mapped registers
+// at $2006 and $2007.
+struct ppu
+{
+    union
+    {
+        u8 ppu_registers[0x9];
+        struct
+        {
+            u8 PPUCTRL;
+            u8 PPUMASK;
+            u8 PPUSTATUS;
+            u8 OAMADDR;
+            u8 OAMDATA;
+            u8 PPUSCROLL;
+            u8 PPUADDR;
+            u8 PPUDATA;
+            u8 OAMDMA;
+        } registers;
+    };
+    u16 cycles;
+    u16 scanline;
+    u16 ppu_addr;
+    u16 addr_latch;
+    u8 *chr_rom;
+    u8 vram[0x4000];
+    u8 oam[256];
+
+    struct tile
+    {
+        u8 hi[8];
+        u8 low[8];
+    } * tile;
+
+    struct nametable
+    {
+        u8 table[0x3C0];
+        u8 attribute_table[64];
+    } * nametable;
+
+    struct background_pallete
+    {
+        u8 color[4];
+    } * bg_pallete;
+
+    uint32_t framebuffer[240*256];
+    SDL_Window *window;
+    SDL_Renderer *renderer;
+    SDL_Texture *texture;
+};
+
+#define PPUSTATUS_VBLANK 0b10000000
+#define PPUCONTROL_NMI 0b10000000
+
+struct header
+{
+    u8 constant[0x4]; // Constant $4E $45 $53 $1A ("NES" followed by MS-DOS end-of-file)
+    u8 prg_rom_size;  // Size of PRG ROM in 16 KB units
+    u8 chr_rom_size;  // Size of CHR ROM in 8 KB units (Value 0 means the board uses CHR RAM)
+    u8 flags_6;       // Mapper, mirroring, battery, trainer
+    u8 flags_7;       // Mapper, VS/Playchoice, NES 2.0
+    u8 flags_8;       // PRG-RAM size (rarely used extension)
+    u8 flags_9;       // TV system (rarely used extension)
+    u8 flags_10;      // TV system, PRG-RAM presence (unofficial, rarely used extension)
+    u8 unused[0x5];
+};
+
+struct mapper
+{
+    bool uses_prg_ram;
+    bool uses_chr_ram;
+    u8 *prg_rom_bank[2];
+    u8 (*mapper_read)(struct mapper *mapper, u16 addr);
+    void (*mapper_write)(struct mapper *mapper, u8 value);
+};
+
+struct cart
+{
+    struct header header;
+    u8 *prg_rom;
+    u8 *chr_rom;
+    int prg_rom_size;
+    int chr_rom_size;
+    struct mapper mapper;
+    u8 mapper_index;
+};
+
+struct nes
+{
+    u8 ram[0x800];
+    struct ppu ppu;
+    struct cpu cpu;
+    struct cart cart;
+    long long int total_cycles;
+};
+
+u8 nes_read8(struct nes *nes, u16 addr);
+void nes_write8(struct nes *nes, u16 addr, u8 value);
+void nes_write16(struct nes *nes, u16 addr, u16 value);
+void nes_run(struct nes *nes);
+void nes_init(struct nes *nes, char *romname);
+void nes_close(struct nes *nes);
+
+#endif
