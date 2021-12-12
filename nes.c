@@ -20,10 +20,8 @@ void nes_run(struct nes *nes)
         }
         nes->cpu.cycles += cpu_execute(nes);
         ppu_cycles = nes->cpu.cycles * 3;
-        for(unsigned i = 0; i < ppu_cycles; i++) ppu_tick(nes);
-        // ppu_execute(nes);
-        // ppu_execute(nes);
-        // ppu_execute(nes);
+        for (unsigned i = 0; i < ppu_cycles; i++)
+            ppu_tick(nes);
         nes->total_cycles += nes->cpu.cycles;
         nes->cpu.cycles = 0;
     }

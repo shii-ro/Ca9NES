@@ -83,91 +83,6 @@ void ppu_init(struct nes *nes)
     nes->ppu.texture = SDL_CreateTexture(nes->ppu.renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STATIC, 256, 240);
 }
 
-void ppu_increase_cycles(struct nes *nes)
-{
-    
-}
-
-void ppu_render_scanline(struct nes *nes)
-{
-    //     Conceptually, the PPU does this 33 times for each scanline:
-
-    // Fetch a nametable entry from $2000-$2FBF.
-    // Fetch the corresponding attribute table entry from $23C0-$2FFF and increment the current VRAM address within the same row.
-    // Fetch the low-order byte of an 8x1 pixel sliver of pattern table from $0000-$0FF7 or $1000-$1FF7.
-    // Fetch the high-order byte of this sliver from an address 8 bytes higher.
-    // Turn the attribute data and the pattern table data into palette indices, and combine them with data from sprite data using priority.
-    u8 nametable_row = (nes->ppu.scanline / 8);
-    uint32_t color;
-    struct tile *bg_tile;
-    struct tile *sprite_tile;
-    // update backgrounds
-    if (nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
-    {
-        bg_tile = (nes->ppu.registers.PPUCTRL & PPUCTRL_BG_TABLE) ? (struct tile *)&nes->ppu.chr_rom[0x1000] : (struct tile *)&nes->ppu.chr_rom[0x0000];
-        for (int nametable_column = 0; nametable_column < 32; nametable_column++)
-        {
-            u16 nametable_index = (nametable_row * 32) + nametable_column;
-            // Nametable INdex:
-            // YYYYY XXXXX
-            // ||||| +++++-- coarse X scroll
-            // +++++-------- coarse Y scroll
-            // PPU NAMETABLE = 0x2000 | (tile address)
-
-            u8 nametable_byte = nes->ppu.nametable[(nes->ppu.registers.PPUCTRL & PPUCTRL_NAMETABLE)]->byte[nametable_index];
-            nes->ppu.bg_tile_row_hi =  bg_tile[nametable_byte].hi[(nes->ppu.scanline % 8)] ;
-            nes->ppu.bg_tile_row_low = bg_tile[nametable_byte].low[(nes->ppu.scanline % 8)];
-            u8 attr_byte = nes->ppu.nametable[(nes->ppu.registers.PPUCTRL & PPUCTRL_NAMETABLE)]->attribute_table[(((nametable_row / 4) * 8) + (nametable_column / 4))];
-            u8 pallete_index = (attr_byte >> (attr_table_lut[nametable_index])) & 0b11;
-
-            for (u8 bit = 0; bit < 8; bit++)
-            {
-                u8 pixel = ((nes->ppu.bg_tile_row_hi >> (7 - bit)) & 0x1) | ((nes->ppu.bg_tile_row_low >> (7 - bit)) & 0x1) << 1;
-                if (pixel)
-                    color = pallete[nes->ppu.palettes.background[pallete_index].color[pixel]];
-                else
-                    color = pallete[nes->ppu.pallete_ram[0]];
-                nes->ppu.framebuffer[(nes->ppu.scanline * 256) + (nametable_column * 8) + bit] = color;
-            }
-        }
-    }
-
-    if (nes->ppu.registers.PPUMASK & PPUMASK_SHOW_SPRITES)
-    {
-        sprite_tile = ((nes->ppu.registers.PPUCTRL & PPUCTRL_SPRITE_TABLE)) ? (struct tile *)&nes->ppu.chr_rom[0x1000] : (struct tile *)&nes->ppu.chr_rom[0x0000];
-        for (int sprite_index = 0; sprite_index < 64; sprite_index++)
-        {
-            if (nes->ppu.oam.sprite[sprite_index].y_pos > nes->ppu.scanline - 8 && nes->ppu.oam.sprite[sprite_index].y_pos <= nes->ppu.scanline)
-            {
-                u8 tile_row_hi;
-                u8 tile_row_low;
-                if (nes->ppu.oam.sprite[sprite_index].attributes & ATTR_FLIP_V)
-                {
-                    tile_row_hi = sprite_tile[nes->ppu.oam.sprite[sprite_index].tile_index].hi[7 - (nes->ppu.scanline - nes->ppu.oam.sprite[sprite_index].y_pos)];
-                    tile_row_low = sprite_tile[nes->ppu.oam.sprite[sprite_index].tile_index].low[7 - (nes->ppu.scanline - nes->ppu.oam.sprite[sprite_index].y_pos)];
-                }
-                else
-                {
-                    tile_row_hi = sprite_tile[nes->ppu.oam.sprite[sprite_index].tile_index].hi[(nes->ppu.scanline - nes->ppu.oam.sprite[sprite_index].y_pos)];
-                    tile_row_low = sprite_tile[nes->ppu.oam.sprite[sprite_index].tile_index].low[(nes->ppu.scanline - nes->ppu.oam.sprite[sprite_index].y_pos)];
-                }
-                for (u8 bit = 0; bit < 8; bit++)
-                {
-                    u8 pixel = (nes->ppu.oam.sprite[sprite_index].attributes & ATTR_FLIP_H) ? ((tile_row_hi >> (bit)) & 0x1) | ((tile_row_low >> (bit)) & 0x1) << 1
-                                                                                            : ((tile_row_hi >> (7 - bit)) & 0x1) | ((tile_row_low >> (7 - bit)) & 0x1) << 1;
-                    if (pixel)
-                    {
-                        if (sprite_index == 0 && pixel != 0)
-                            nes->ppu.registers.PPUSTATUS |= 0b01000000; // sprite 0 hit
-                        color = pallete[nes->ppu.palettes.sprite[nes->ppu.oam.sprite[sprite_index].attributes & ATTR_PALETTE].color[pixel]];
-                        nes->ppu.framebuffer[(nes->ppu.scanline * 256) + (nes->ppu.oam.sprite[sprite_index].x_pos) + bit] = color;
-                    }
-                }
-            }
-        }
-    }
-}
-
 void ppu_write(struct nes *nes, u16 addr, u8 value)
 {
     switch(addr & 0x7)
@@ -319,28 +234,96 @@ void ppu_tick(struct nes *nes)
         u16 hi;
         u16 low;
     } bg_sr;
+    static u16 attr_sr;
 
-    static u16 bg_latch_hi;
-    static u16 bg_latch_low;
+    static u8 bg_latch_hi;
+    static u8 bg_latch_low;
+    static u8 attr_latch;
 
+    static u8 pallete_index;
+    static u8 pixel;
+    static uint32_t color;
+
+    static u16 nametable_addr;
+    static u8 nametable_byte;
+    static u16 attr_table_addr;
+    static u8 attr_table_byte;
 
     //  Visible scanlines (0-239)
-    if (nes->ppu.scanline < 240)
+    if (nes->ppu.scanline < 240 || nes->ppu.scanline == 261  && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
     {
-        static u16 nametable_addr;
-        static u8 nametable_byte;
-        static u16 attr_table_addr;
-        static u8 attr_table_byte;
-
-        u8 pallete_index;
-        u8 pixel;
-        uint32_t color;
-
-        
-
-
         if (nes->ppu.scanline == 30)
             nes->ppu.registers.PPUSTATUS |= PPUSTATUS_0_HIT;
+
+        if (nes->ppu.cycles < 256 || (nes->ppu.cycles > 319 && nes->ppu.cycles < 336))
+        {
+            // Afterwards, the shift registers are shifted once, to the data for the next pixel.
+            // Cycles 0-255
+            // The data for each tile is fetched during this phase. Each memory access takes 2 PPU cycles to complete,
+            // and 4 must be performed per tile:
+
+            // Nametable byte
+            // Attribute table byte
+            // Pattern table tile low
+            // Pattern table tile high (+8 bytes from pattern table tile low)
+
+            if (nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
+            {
+                switch ((nes->ppu.cycles) % 8)
+                {
+                case 0:
+                    bg_sr.hi = bg_sr.hi & 0x00FF | bg_latch_hi << 8;
+                    bg_sr.low = bg_sr.low & 0x00FF | bg_latch_low << 8;
+                    attr_sr = attr_sr & 0x00FF | attr_latch << 8;
+
+                    nametable_addr = (nes->ppu.scroll.v & 0x0FFF);
+                    // the shifters are reloaded every 8 cycles
+                    break;
+                case 1: // fetch nametable byte
+                    nametable_byte = nes->ppu.vram[nametable_addr];
+                    break;
+                case 2:
+                    attr_table_addr = 0x03C0 | (nes->ppu.scroll.v & 0x0C00) | ((nes->ppu.scroll.v >> 4) & 0x38) | ((nes->ppu.scroll.v >> 2) & 0x07);
+                    break;
+                case 3: // fetch attr byte
+                    attr_table_byte = nes->ppu.vram[attr_table_addr];
+                    attr_latch = nes->ppu.vram[attr_table_addr];
+                    break;
+                case 5: // fetch lower 8bits of attr table
+                    bg_latch_hi = nes->ppu.chr_rom[0x1000 + (nametable_byte * 0x10) + ((nes->ppu.scroll.v & VT_FINE_Y) >> 12)];
+                    break;
+                case 7:
+                    bg_latch_low = nes->ppu.chr_rom[0x1000 + (nametable_byte * 0x10) + 8 + ((nes->ppu.scroll.v & VT_FINE_Y) >> 12)];
+
+                    if ((nes->ppu.scroll.v & VT_COARSE_X) == VT_COARSE_X)
+                    {                                      // if coarse X == 31
+                        nes->ppu.scroll.v &= ~VT_COARSE_X; // coarse X = 0
+                        nes->ppu.scroll.v ^= 0x0400;       // switch horizontal nametable
+                    }
+                    else
+                        nes->ppu.scroll.v += 1; // increment coarse X
+                    break;
+                }
+
+                pallete_index = ((attr_sr & 0xC0) >> 6) & 0b11;
+
+                pixel = (bg_sr.hi >> (7 - nes->ppu.scroll.fine_x)) & 0x1 | ((bg_sr.low >> (7 - nes->ppu.scroll.fine_x) & 0x1)) << 1;
+
+                if (pixel)
+                    color = pallete[nes->ppu.palettes.background[pallete_index].color[pixel]];
+                else
+                    color = pallete[nes->ppu.pallete_ram[0]];
+
+                bg_sr.hi = bg_sr.hi >> 15 | bg_sr.hi << 1;
+                bg_sr.low = bg_sr.low >> 15 | bg_sr.low << 1;
+                attr_sr = attr_sr >> 15 | attr_sr << 1;
+            }
+        }
+
+        // Every cycle, a bit is fetched from the 4 background shift registers in order to create a pixel on screen.
+        // Exactly which bit is fetched depends on the fine X scroll, set by $2005 (this is how fine X scrolling is possible).
+        if (nes->ppu.cycles < 256 && nes->ppu.scanline >= 0 && nes->ppu.scanline < 240)
+            nes->ppu.framebuffer[(nes->ppu.scanline * 256) + nes->ppu.cycles] = color;
 
         // Reset Coarse X based on the T
         if (nes->ppu.cycles == 257 && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
@@ -369,82 +352,9 @@ void ppu_tick(struct nes *nes)
                 nes->ppu.scroll.v = (nes->ppu.scroll.v & ~VT_COARSE_Y) | (y << 5); // put coarse Y back into v
             }
         }
-
-        bool bg_cycles = (nes->ppu.cycles < 256 || (nes->ppu.cycles > 320 && nes->ppu.cycles < 337));
-
-        if (nes->ppu.cycles < 256 )
-        {
-
-            // render pixel
-            if (nes->ppu.scanline >= 0 && nes->ppu.scanline < 240 && nes->ppu.cycles < 256)
-            {
-                nes->ppu.framebuffer[(nes->ppu.scanline * 256) + nes->ppu.cycles] = color;
-            }
-            // Cycles 0-255
-            // The data for each tile is fetched during this phase. Each memory access takes 2 PPU cycles to complete,
-            // and 4 must be performed per tile:
-
-            // Nametable byte
-            // Attribute table byte
-            // Pattern table tile low
-            // Pattern table tile high (+8 bytes from pattern table tile low)
-
-            if (nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
-            {
-                switch (nes->ppu.cycles % 8)
-                {
-                    // The data fetched from these accesses is placed into internal latches,
-                    // and then fed to the appropriate shift registers when it's time to do so (every 8 cycles)
-                case 0:
-                    // increment coarse x every 8 cycles
-
-                    bg_sr.hi = bg_sr.hi & 0x00FF | bg_latch_hi;
-                    bg_sr.low = bg_sr.low & 0x00FF | bg_latch_low;
-
-                    nametable_addr = (nes->ppu.scroll.v & 0x0FFF);
-
-                    if ((nes->ppu.scroll.v & VT_COARSE_X) == VT_COARSE_X)
-                    {                                      // if coarse X == 31
-                        nes->ppu.scroll.v &= ~VT_COARSE_X; // coarse X = 0
-                        nes->ppu.scroll.v ^= 0x0400;       // switch horizontal nametable
-                    }
-                    else
-                        nes->ppu.scroll.v += 1; // increment coarse X
-
-                    break;
-                case 1: // fetch nametable byte
-                    nametable_byte = nes->ppu.vram[nametable_addr];
-                    break;
-                case 2:
-                    attr_table_addr = 0x03C0 | (nes->ppu.scroll.v & 0x0C00) | ((nes->ppu.scroll.v >> 4) & 0x38) | ((nes->ppu.scroll.v >> 2) & 0x07);
-                    break;
-                case 3: // fetch attr byte
-                    attr_table_byte = nes->ppu.vram[attr_table_addr];
-                    break;
-                case 5: // fetch lower 8bits of attr table
-                    bg_latch_hi = nes->ppu.chr_rom[0x1000 + (nametable_byte * 0x10) + ((nes->ppu.scroll.v & VT_FINE_Y) >> 12)] << 8;
-                    break;
-                case 7:
-                    bg_latch_low = nes->ppu.chr_rom[0x1000 + (nametable_byte * 0x10) + 8 + ((nes->ppu.scroll.v & VT_FINE_Y) >> 12)] << 8;
-                    break;
-                }
-
-                pallete_index = (attr_table_byte >> (attr_table_lut[nes->ppu.scroll.v & 0x0FFF])) & 0b11;
-
-                pixel = (bg_sr.hi >> (7 - nes->ppu.scroll.fine_x) & 0x1) | (bg_sr.low >> (7 - nes->ppu.scroll.fine_x) & 0x1) << 1;
-
-                bg_sr.hi = bg_sr.hi >> 15 | bg_sr.hi << 1;
-                bg_sr.low = bg_sr.low >> 15 | bg_sr.low << 1;
-
-                if (pixel)
-                    color = pallete[nes->ppu.palettes.background[pallete_index].color[pixel]];
-                else
-                    color = pallete[nes->ppu.pallete_ram[0]];
-            }
-        }
     }
 
-    else if (nes->ppu.scanline == 261)
+    if (nes->ppu.scanline == 261)
     {
         if (nes->ppu.cycles == 304 && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
         {
@@ -486,52 +396,5 @@ void ppu_tick(struct nes *nes)
                 nes->ppu.registers.PPUCTRL &= ~PPUCONTROL_NMI;
             }
         }
-    }
-}
-
-void ppu_execute(struct nes *nes)
-{
-    // The ppu Renders 262 scanlines per frame
-    // Each scanline lasts 341 ppu cycles
-    nes->ppu.cycles += nes->cpu.cycles;
-
-    if (nes->ppu.cycles >= 341)
-    {
-        nes->ppu.cycles -= 341;
-        nes->ppu.scanline++;
-
-         // The PPU just idles during this scanline. Even though accessing PPU memory
-        // from the program would be safe here,
-        // the VBlank flag isn't set until after this scanline.
-
-        //Pre render scanline 261
-        if (nes->ppu.scanline == 261)
-        {
-            nes->ppu.registers.PPUSTATUS &= ~PPUSTATUS_0_HIT;
-            nes->ppu.registers.PPUSTATUS &= ~PPUSTATUS_VBLANK;
-            nes->ppu.scanline = 0;
-            return;
-        }
-
-        else if (nes->ppu.scanline == 241)
-        {
-            SDL_Delay(10);
-            SDL_UpdateTexture(nes->ppu.texture, NULL, nes->ppu.framebuffer, 256 * sizeof(uint32_t));
-            SDL_RenderCopy(nes->ppu.renderer, nes->ppu.texture, NULL, NULL);
-            SDL_RenderPresent(nes->ppu.renderer);
-        }
-
-        else if (nes->ppu.scanline >= 241 && nes->ppu.scanline < 260)
-        {
-            nes->ppu.registers.PPUSTATUS |= PPUSTATUS_VBLANK;
-            if (nes->ppu.registers.PPUCTRL & PPUCONTROL_NMI)
-            {
-                cpu_interrupt(nes, NMI_VECTOR);
-                nes->ppu.registers.PPUCTRL &= ~PPUCONTROL_NMI;
-            }
-            return;
-        }
-
-        else if(nes->ppu.scanline < 240) ppu_render_scanline(nes);
     }
 }
