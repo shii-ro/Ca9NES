@@ -17,6 +17,9 @@ void cart_load_header(struct nes *nes, FILE *rom )
     nes->cart.chr_rom_size = nes->cart.header.chr_rom_size * (8 * 1024);
     nes->cart.prg_rom_size = nes->cart.header.prg_rom_size * (16 * 1024);
 
+    printf("CHR SIZE: %d PRG_SIZE %d\n", nes->cart.chr_rom_size, nes->cart.prg_rom_size);
+    printf("MIRORING: %x ", nes->cart.header.flags_6 & 0x1);
+
     nes->cart.mapper_index = (nes->cart.header.flags_7 & 0xFF) << 8 | ((nes->cart.header.flags_6 >> 8) & 0xFF);
 }
 
@@ -57,7 +60,7 @@ void mapper00_init(struct nes *nes)
     nes->cart.mapper.prg_rom_bank[0] = nes->cart.prg_rom;
     nes->cart.mapper.prg_rom_bank[1] = ( nes->cart.header.prg_rom_size == 1) ?
                                     nes->cart.prg_rom : 
-                                    nes->cart.prg_rom +  0x4000;
+                                    &nes->cart.prg_rom[0x4000];
 
     nes->cart.mapper.mapper_read = &mapper00_read;
 }
