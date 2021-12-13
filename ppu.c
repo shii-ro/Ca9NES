@@ -12,38 +12,12 @@ const uint32_t pallete[64] =
         0xeceeecff, 0xa8ccecff, 0xbcbcecff, 0xd4b2ecff, 0xecaeecff, 0xecaed4ff, 0xecb4b0ff, 0xe4c490ff, 0xccd278ff, 0xb4de78ff, 0xa8e290ff, 0x98e2b4ff, 0xa0d6e4ff, 0xa0a2a0ff, 0x000000FF, 0x000000FF};
 
 // gets ride of some bitwise fuckery
-u8 attr_table_lut[30 * 32] =
+u8 attr_table_lut[] =
     {
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2,
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2,
-        4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6,
-        4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6,
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2,
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2,
-        4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6,
-        4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6,
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2,
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2,
-        4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6,
-        4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6,
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2,
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2,
-        4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6,
-        4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6,
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2,
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2,
-        4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6,
-        4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6,
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2,
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2,
-        4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6,
-        4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6,
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2,
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2,
-        4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6,
-        4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6, 4, 4, 6, 6,
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2,
-        0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 2, 2};
+        0, 0, 2, 2,
+        0, 0, 2, 2,
+        4, 4, 6, 6,
+        4, 4, 6, 6};
 
 void ppu_init(struct nes *nes)
 {
@@ -85,7 +59,7 @@ void ppu_init(struct nes *nes)
 
 void ppu_write(struct nes *nes, u16 addr, u8 value)
 {
-    switch(addr & 0x7)
+    switch (addr & 0x7)
     {
     case 0:
         if (((value & 0x80) & (nes->ppu.registers.PPUSTATUS & 0x80)) == 0x80)
@@ -95,8 +69,12 @@ void ppu_write(struct nes *nes, u16 addr, u8 value)
         //    <used elsewhere> <- d: ABCDEF..
         nes->ppu.scroll.t = (nes->ppu.scroll.t & ~VT_NAMETABLE_SEL) | (nes->ppu.registers.PPUCTRL & PPUCTRL_NAMETABLE) << 10;
         break;
-    case 1: nes->ppu.registers.PPUMASK = value; break;
-    case 3: nes->ppu.registers.OAMADDR = value; break;
+    case 1:
+        nes->ppu.registers.PPUMASK = value;
+        break;
+    case 3:
+        nes->ppu.registers.OAMADDR = value;
+        break;
     case 5:
         // yyy NN YYYYY XXXXX
         // ||| || ||||| +++++-- coarse X scroll
@@ -158,7 +136,10 @@ void ppu_write(struct nes *nes, u16 addr, u8 value)
         else
             switch (nes->ppu.scroll.v & 0x1F)
             {
-            case 0x10: case 0x14: case 0x18: case 0x1C:
+            case 0x10:
+            case 0x14:
+            case 0x18:
+            case 0x1C:
                 nes->ppu.pallete_ram[nes->ppu.scroll.v & 0x0F] = value;
             default:
                 nes->ppu.pallete_ram[nes->ppu.scroll.v & 0x1F] = value;
@@ -175,42 +156,50 @@ void ppu_write(struct nes *nes, u16 addr, u8 value)
 u8 ppu_read(struct nes *nes, u16 addr)
 {
     u8 ret_val;
-    switch(addr & 0xF)
+    switch (addr & 0xF)
     {
-        case 0: return 0;
-        case 1: return 0;
-        case 5: return 0;
-        case 6: return 0;
-        case 3: return 0;
-        case 2:
-            ret_val = nes->ppu.registers.PPUSTATUS;
-            nes->ppu.registers.PPUSTATUS &= ~PPUSTATUS_VBLANK;
-            nes->ppu.scroll.w = false;
-            return (ret_val);
-        case 7:
-            if (nes->ppu.scroll.v < 0x2000)
+    case 0:
+        return 0;
+    case 1:
+        return 0;
+    case 5:
+        return 0;
+    case 6:
+        return 0;
+    case 3:
+        return 0;
+    case 2:
+        ret_val = nes->ppu.registers.PPUSTATUS;
+        nes->ppu.registers.PPUSTATUS &= ~PPUSTATUS_VBLANK;
+        nes->ppu.scroll.w = false;
+        return (ret_val);
+    case 7:
+        if (nes->ppu.scroll.v < 0x2000)
+        {
+            ret_val = nes->ppu.data_buf;
+            nes->ppu.data_buf = nes->ppu.chr_rom[nes->ppu.scroll.v & 0x1FFF];
+        }
+        else if (nes->ppu.scroll.v < 0x3F00)
+        {
+            ret_val = nes->ppu.data_buf;
+            nes->ppu.data_buf = nes->ppu.nametable[(nes->ppu.scroll.v & 0x1FFF) / 0x400]->bytes[(nes->ppu.scroll.v & 0x1FFF) % 0x400];
+        }
+        else
+            switch (nes->ppu.scroll.v & 0x1F)
             {
-                ret_val = nes->ppu.data_buf;
-                nes->ppu.data_buf = nes->ppu.chr_rom[nes->ppu.scroll.v & 0x1FFF];
+            case 0x10:
+            case 0x14:
+            case 0x18:
+            case 0x1C:
+                ret_val = nes->ppu.pallete_ram[nes->ppu.scroll.v & 0x0F];
+            default:
+                ret_val = nes->ppu.pallete_ram[nes->ppu.scroll.v & 0x1F];
             }
-            else if (nes->ppu.scroll.v < 0x3F00)
-            {
-                ret_val = nes->ppu.data_buf;
-                nes->ppu.data_buf = nes->ppu.nametable[(nes->ppu.scroll.v & 0x1FFF) / 0x400]->bytes[(nes->ppu.scroll.v & 0x1FFF) % 0x400];
-            }
-            else
-                switch (nes->ppu.scroll.v & 0x1F)
-                {
-                case 0x10: case 0x14: case 0x18: case 0x1C:
-                    ret_val = nes->ppu.pallete_ram[nes->ppu.scroll.v & 0x0F];
-                default:
-                    ret_val = nes->ppu.pallete_ram[nes->ppu.scroll.v & 0x1F];
-                }
-            nes->ppu.scroll.v = (nes->ppu.registers.PPUCTRL & PPUCTRL_VRAM_INC) ? nes->ppu.scroll.v + 32 : nes->ppu.scroll.v + 1;
-            return ret_val;
-        default:
-            printf("\nUnimplemented PPU READ: %02x\n", addr);
-            nes->cpu.uoc = true;
+        nes->ppu.scroll.v = (nes->ppu.registers.PPUCTRL & PPUCTRL_VRAM_INC) ? nes->ppu.scroll.v + 32 : nes->ppu.scroll.v + 1;
+        return ret_val;
+    default:
+        printf("\nUnimplemented PPU READ: %02x\n", addr);
+        nes->cpu.uoc = true;
     }
     return 0;
 }
@@ -234,11 +223,15 @@ void ppu_tick(struct nes *nes)
         u16 hi;
         u16 low;
     } bg_sr;
-    static u16 attr_sr;
+
+    static u16 attr_sr_hi;
+    static u16 attr_sr_low;
 
     static u8 bg_latch_hi;
     static u8 bg_latch_low;
-    static u8 attr_latch;
+
+    static u8 attr_latch_hi;
+    static u8 attr_latch_low;
 
     static u8 pallete_index;
     static u8 pixel;
@@ -249,8 +242,9 @@ void ppu_tick(struct nes *nes)
     static u16 attr_table_addr;
     static u8 attr_table_byte;
 
+    static u8 pallete2bits;
     //  Visible scanlines (0-239)
-    if (nes->ppu.scanline < 240 || nes->ppu.scanline == 261  && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
+    if (nes->ppu.scanline < 240 || nes->ppu.scanline == 261 && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
     {
         if (nes->ppu.scanline == 30)
             nes->ppu.registers.PPUSTATUS |= PPUSTATUS_0_HIT;
@@ -274,7 +268,9 @@ void ppu_tick(struct nes *nes)
                 case 0:
                     bg_sr.hi = bg_sr.hi & 0x00FF | bg_latch_hi << 8;
                     bg_sr.low = bg_sr.low & 0x00FF | bg_latch_low << 8;
-                    attr_sr = attr_sr & 0x00FF | attr_latch << 8;
+
+                    attr_sr_hi = attr_sr_hi & 0x00FF | attr_latch_hi << 8;
+                    attr_sr_low = attr_sr_low & 0x00FF | attr_latch_low << 8;
 
                     nametable_addr = (nes->ppu.scroll.v & 0x0FFF);
                     // the shifters are reloaded every 8 cycles
@@ -287,7 +283,25 @@ void ppu_tick(struct nes *nes)
                     break;
                 case 3: // fetch attr byte
                     attr_table_byte = nes->ppu.vram[attr_table_addr];
-                    attr_latch = nes->ppu.vram[attr_table_addr];
+
+                    u8 y = (((nes->ppu.scroll.v >> 5) & 0x1F) & 0x3);
+                    u8 x = ((nes->ppu.scroll.v & 0x1F) & 0x3);
+
+                    // every attribute table byte controls a 4x4 tile
+                    //   0   1   2   3
+                    // .---+---+---+---.
+                    // |   |   |   |   |  0  00 01
+                    // + D1-D0 + D3-D2 +     10 11
+                    // |   |   |   |   |  1
+                    // +---+---+---+---+
+                    // |   |   |   |   |  2
+                    // + D5-D4 + D7-D6 +
+                    // |   |   |   |   |  3
+                    // `---+---+---+---'
+
+                    pallete2bits = (attr_table_byte >> attr_table_lut[y * 4 + x] & 0b11);
+                    attr_latch_hi = (pallete2bits >> 0x1) * 255;
+                    attr_latch_low = (pallete2bits & 0x1) * 255;
                     break;
                 case 5: // fetch lower 8bits of attr table
                     bg_latch_hi = nes->ppu.chr_rom[0x1000 + (nametable_byte * 0x10) + ((nes->ppu.scroll.v & VT_FINE_Y) >> 12)];
@@ -305,8 +319,7 @@ void ppu_tick(struct nes *nes)
                     break;
                 }
 
-                pallete_index = ((attr_sr & 0xC0) >> 6) & 0b11;
-
+                pallete_index = (attr_sr_low >> (7 - nes->ppu.scroll.fine_x)) & 0x1 | ((attr_sr_hi >> (7 - nes->ppu.scroll.fine_x) & 0x1)) << 1;
                 pixel = (bg_sr.hi >> (7 - nes->ppu.scroll.fine_x)) & 0x1 | ((bg_sr.low >> (7 - nes->ppu.scroll.fine_x) & 0x1)) << 1;
 
                 if (pixel)
@@ -316,7 +329,8 @@ void ppu_tick(struct nes *nes)
 
                 bg_sr.hi = bg_sr.hi >> 15 | bg_sr.hi << 1;
                 bg_sr.low = bg_sr.low >> 15 | bg_sr.low << 1;
-                attr_sr = attr_sr >> 15 | attr_sr << 1;
+                attr_sr_hi = attr_sr_hi >> 15 | attr_sr_hi << 1;
+                attr_sr_low = attr_sr_low >> 15 | attr_sr_low << 1;
             }
         }
 
@@ -373,7 +387,6 @@ void ppu_tick(struct nes *nes)
         //Pre-render scanline (-1 or 261)
         //This is a dummy scanline, whose sole purpose is to fill the shift registers with the data for the first two tiles of the next scanline.
         //Although no pixels are rendered for this scanline, the PPU still makes the same memory accesses it would for a regular scanline.
-
         if (nes->ppu.scanline > 261)
         {
             nes->ppu.registers.PPUSTATUS &= ~PPUSTATUS_0_HIT;
