@@ -171,8 +171,6 @@ struct ppu
     //  2  1    0   1
     struct
     {
-        u8 X_c;
-        u8 Y_c;
         #define VT_FINE_Y           0x7000
         #define VT_NAMETABLE_SEL    0xC00
         #define VT_COARSE_Y         0x3E0
@@ -181,14 +179,6 @@ struct ppu
         u16 t;     // Temporary VRAM address (15 bits); can also be thought of as the address of the top left onscreen tile.
         u8 fine_x; // Fine X scroll (3 bits)
         bool w;    // First or second write toggle (1 bit)
-        // The implementation of scrolling has two components.
-        // There are two fine offsets, specifying what part of an 8x8 tile each pixel falls on,
-        // and two coarse offsets, specifying which tile.
-        // Because each tile corresponds to a single byte addressable by the PPU,
-        // during rendering the coarse offsets reuse the same VRAM address register (v)
-        // that is normally used to send and receive data from the PPU. Because of this reuse,
-        // the two registers $2005 and $2006 both offer control over v,
-        // but $2005 is mapped in a more obscure way, designed specifically to be convenient for scrolling.
     } scroll;
 
     uint32_t framebuffer[240*256];

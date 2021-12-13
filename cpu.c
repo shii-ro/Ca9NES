@@ -45,11 +45,11 @@ static inline u16 pull16(struct nes *nes)
 #define PULL8() pull8(nes)
 #define PULL16() pull16(nes)
 
-#define PAGECROSS(a, b)              \
-    do                               \
-    {                                \
-        if (((a ^ b) & 0xFF00) != 0) \
-            nes->cpu.cycles++;       \
+#define PAGECROSS(a, b)                  \
+    do                                   \
+    {                                    \
+        if ((((a) ^ (b)) & 0xFF00) != 0) \
+            nes->cpu.cycles++;           \
     } while (0);
 
 // ADDRESSING MODES
@@ -86,25 +86,27 @@ static inline u16 pull16(struct nes *nes)
         op_addr = PC++;            \
     } while (0);
 
-#define ADRS_ABS_X()                                    \
-    do                                                  \
-    {                                                   \
-        op_addr = (READ8(PC++) | READ8(PC++) << 8) + X; \
-        PAGECROSS(op_addr, op_addr - X);                \
+#define ADRS_ABS_X()                            \
+    do                                          \
+    {                                           \
+        u8 low = READ8(PC++);                   \
+        op_addr = (low | READ8(PC++) << 8) + X; \
+        PAGECROSS(op_addr, op_addr - X);        \
     } while (0);
 
-#define __ADRS_ABS_X()                                    \
-    do                                                  \
-    {                                                   \
-        op_addr = (READ8(PC++) | READ8(PC++) << 8) + X; \
+#define __ADRS_ABS_X()                          \
+    do                                          \
+    {                                           \
+        u8 low = READ8(PC++);                   \
+        op_addr = (low | READ8(PC++) << 8) + X; \
     } while (0);
 
-#define ADRS_ABS_Y()                             \
-    do                                           \
-    {                                            \
-        u8 low = READ8(PC++);                    \
+#define ADRS_ABS_Y()                            \
+    do                                          \
+    {                                           \
+        u8 low = READ8(PC++);                   \
         op_addr = (low | READ8(PC++) << 8) + Y; \
-        PAGECROSS(op_addr, op_addr - Y);         \
+        PAGECROSS(op_addr, (op_addr - Y));      \
     } while (0);
 
 #define __ADRS_ABS_Y()                           \
@@ -117,7 +119,8 @@ static inline u16 pull16(struct nes *nes)
 #define ADRS_IND()                                                                          \
     do                                                                                      \
     {                                                                                       \
-        op_addr = READ8(PC++) | READ8(PC++) << 8;                                           \
+        u8 low = READ8(PC++);                                                               \
+        op_addr = (low | READ8(PC++) << 8);                                                 \
         op_addr = READ8(op_addr) | READ8((op_addr & 0xFF00) | ((op_addr + 1) & 0xFF)) << 8; \
     } while (0);
 
@@ -563,7 +566,7 @@ u8 cpu_execute(struct nes *nes)
         case 0x40: ADRS_IMP(); RTI(); return 6; // RTI IMPLIED
         default:
             printf("NOT IMPLEMENTED: %02X\n", opcode);
-            printf("%04x\t%02X A: %02X X: %02X Y: %02X S: %02X SP: %02X CYC: %d PPUCTRL: %02x",PC,
+            printf("%04x\t%02X A: %02X X: %02X Y: %02X S: %02X SP: %02X CYC: %lld PPUCTRL: %02x",PC,
                    opcode,
                    A,
                    X,
