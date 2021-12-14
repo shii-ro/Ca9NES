@@ -38,49 +38,53 @@ struct cpu
 // The PPU addresses a 16kB space, $0000-3FFF, completely separate from the CPU's address bus.
 // It is either directly accessed by the PPU itself,or via the CPU with memory mapped registers
 // at $2006 and $2007.
+
+struct tile
+{
+    u8 hi[8];
+    u8 low[8];
+};
+
 struct ppu
 {
-    union
+    struct
     {
-        u8 ppu_registers[0x9];
-        struct
-        {
-            #define PPUCTRL_NMI          0b10000000 
-            #define PPUCTRL_MASTER_SLAVE 0b01000000
-            #define PPUCTRL_SPRITE_SIZE  0b00100000
-            #define PPUCTRL_BG_TABLE     0b00010000
-            #define PPUCTRL_SPRITE_TABLE 0b00001000
-            #define PPUCTRL_VRAM_INC     0b00000100
-            #define PPUCTRL_NAMETABLE    0b00000011
-            u8 PPUCTRL;
-            #define PPUMASK_EMP_BLUE          0b10000000
-            #define PPUMASK_EMP_GREEN         0b01000000
-            #define PPUMASK_EMP_RED           0b00100000
-            #define PPUMASK_SHOW_SPRITES      0b00010000
-            #define PPUMASK_SHOW_BG           0b00001000
-            #define PPUMASK_SHOW_SPRITES_LEFT 0b00000100
-            #define PPUMASK_SHOW_BG_LEFT      0b00000010
-            #define PPUMASK_GREYSCALE         0b00000001
-            u8 PPUMASK;
-            #define PPUSTATUS_VBLANK 0b10000000
-            #define PPUSTATUS_0_HIT  0b01000000
-            #define PPUSTATUS_OV     0b00100000
-            u8 PPUSTATUS;
-            u8 OAMADDR;
-            u8 OAMDATA;
-            u8 PPUSCROLL;
-            u8 PPUADDR;
-            u8 PPUDATA;
-            u8 OAMDMA;
-        } registers;
-    };
+        #define PPUCTRL_NMI          0b10000000 
+        #define PPUCTRL_MASTER_SLAVE 0b01000000
+        #define PPUCTRL_SPRITE_SIZE  0b00100000
+        #define PPUCTRL_BG_TABLE     0b00010000
+        #define PPUCTRL_SPRITE_TABLE 0b00001000
+        #define PPUCTRL_VRAM_INC     0b00000100
+        #define PPUCTRL_NAMETABLE    0b00000011
+        u8 PPUCTRL;
+        #define PPUMASK_EMP_BLUE          0b10000000
+        #define PPUMASK_EMP_GREEN         0b01000000
+        #define PPUMASK_EMP_RED           0b00100000
+        #define PPUMASK_SHOW_SPRITES      0b00010000
+        #define PPUMASK_SHOW_BG           0b00001000
+        #define PPUMASK_SHOW_SPRITES_LEFT 0b00000100
+        #define PPUMASK_SHOW_BG_LEFT      0b00000010
+        #define PPUMASK_GREYSCALE         0b00000001
+        u8 PPUMASK;
+        #define PPUSTATUS_VBLANK 0b10000000
+        #define PPUSTATUS_0_HIT  0b01000000
+        #define PPUSTATUS_OV     0b00100000
+        u8 PPUSTATUS;
+        u8 OAMADDR;
+        u8 OAMDATA;
+        u8 PPUSCROLL;
+        u8 PPUADDR;
+        u8 PPUDATA;
+        u8 OAMDMA;
+    } registers;
+
     u8 data_buf;
     u16 cycles;
     u16 scanline;
     u16 addr_latch;
     u8 *chr_rom;
     u8 vram[0x800];
-    //u8 pallete_ram[0x20];
+
     union
     {
         u8 pallete_ram[0x20];
@@ -113,28 +117,23 @@ struct ppu
     // where each sprite's information occupies 4 bytes.
     union
     {
+        uint32_t oam_32[64];
         u8 oam_bytes[256];
         struct
         {
             u8 y_pos;
             u8 tile_index;
-            #define ATTR_FLIP_V  0b10000000
-            #define ATTR_FLIP_H  0b01000000
-            #define ATTR_PRIO    0b00100000
+            #define ATTR_FLIP_V 0b10000000
+            #define ATTR_FLIP_H 0b01000000
+            #define ATTR_PRIO 0b00100000
             #define ATTR_PALETTE 0b00000011
             u8 attributes;
             u8 x_pos;
         } sprite[64];
     } oam;
 
-    u16 bg_tile_row_hi;
-    u16 bg_tile_row_low;
-
-    struct tile
-    {
-        u8 hi[8];
-        u8 low[8];
-    } * tile;
+    struct tile *bg_tile;
+    struct tile *sprt_tile;
 
     // A nametable is a 1024 byte area of memory used by the PPU to lay out backgrounds.
     // Each byte in the nametable controls one 8x8 pixel character cell, and each nametable has 30 rows of 32 tiles each,
