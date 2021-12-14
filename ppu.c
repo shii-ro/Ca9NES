@@ -404,7 +404,7 @@ if (nes->ppu.scanline < 240 || (nes->ppu.scanline == 261 && nes->ppu.registers.P
     {
         if (nes->ppu.cycles == 304 && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
         {
-            nes->ppu.scroll.v = (nes->ppu.scroll.v & ~0b0111101111100000) | (nes->ppu.scroll.t & 0b0111101111100000);
+            nes->ppu.scroll.v = (nes->ppu.scroll.v & ~0x7BE0) | (nes->ppu.scroll.t & 0x7BE0);
         }
     }
 
