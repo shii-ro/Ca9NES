@@ -317,7 +317,7 @@ if (nes->ppu.scanline < 240 || (nes->ppu.scanline == 261 && nes->ppu.registers.P
                 break;
             }
 
-            // i dont like these 2 lines, tryna find a solution for these
+            // i dont like these lines, tryna find a solution for these
             pallete_index = ((attr_sr_low >> (7 - nes->ppu.scroll.fine_x)) & 0x1) | ((attr_sr_hi >> (7 - nes->ppu.scroll.fine_x) & 0x1)) << 1;
             pixel = ((bg_sr_hi >> (7 - nes->ppu.scroll.fine_x)) & 0x1) | ((bg_sr_low >> (7 - nes->ppu.scroll.fine_x) & 0x1)) << 1;
 
@@ -351,11 +351,14 @@ if (nes->ppu.scanline < 240 || (nes->ppu.scanline == 261 && nes->ppu.registers.P
                     for (u8 bit = 0; bit < 8; bit++)
                     {
                         u8 sprite_pixel = (nes->ppu.oam.sprite[sprite_index].attributes & ATTR_FLIP_H) ? ((tile_row_hi >> (bit)) & 0x1) | ((tile_row_low >> (bit)) & 0x1) << 1
-                                                                                                : ((tile_row_hi >> (7 - bit)) & 0x1) | ((tile_row_low >> (7 - bit)) & 0x1) << 1;
+                                                                                                       : ((tile_row_hi >> (7 - bit)) & 0x1) | ((tile_row_low >> (7 - bit)) & 0x1) << 1;
                         if (sprite_pixel)
                         {
-                            color = pallete[nes->ppu.palettes.sprite[nes->ppu.oam.sprite[sprite_index].attributes & ATTR_PALETTE].color[sprite_pixel]];
-                            nes->ppu.framebuffer[(nes->ppu.scanline * 256) + (nes->ppu.oam.sprite[sprite_index].x_pos) + bit] = color;
+                            if (!(nes->ppu.oam.sprite[sprite_index].attributes & ATTR_PRIO))
+                            {
+                                color = pallete[nes->ppu.palettes.sprite[nes->ppu.oam.sprite[sprite_index].attributes & ATTR_PALETTE].color[sprite_pixel]];
+                                nes->ppu.framebuffer[(nes->ppu.scanline * 256) + (nes->ppu.oam.sprite[sprite_index].x_pos) + bit] = color;
+                            }
                         }
                     }
                 }
