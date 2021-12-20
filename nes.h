@@ -208,7 +208,7 @@ struct mapper
     bool uses_chr_ram;
     u8 *prg_rom_bank[2];
     u8 (*mapper_read)(struct mapper *mapper, u16 addr);
-    void (*mapper_write)(struct mapper *mapper, u8 value);
+    void (*mapper_write)(struct mapper *mapper, u16 addr, u8 value);
 };
 
 struct cart
@@ -225,10 +225,13 @@ struct cart
 struct nes
 {
     u8 ram[0x800];
+    u8 io[0x18];
     struct ppu ppu;
     struct cpu cpu;
     struct cart cart;
     long long int total_cycles;
+    u8 keystate;
+    bool clk;
 };
 
 u8 nes_read8(struct nes *nes, u16 addr);

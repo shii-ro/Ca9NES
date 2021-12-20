@@ -51,7 +51,7 @@ void ppu_init(struct nes *nes)
     nes->ppu.cycles = 0;
 
     SDL_Init(SDL_INIT_VIDEO);
-    nes->ppu.window = SDL_CreateWindow("desuNES", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 256, 240, SDL_WINDOW_SHOWN);
+    nes->ppu.window = SDL_CreateWindow("desuNES", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 256 * 2, 240 * 2, SDL_WINDOW_SHOWN);
     nes->ppu.renderer = SDL_CreateRenderer(nes->ppu.window, -1, SDL_RENDERER_ACCELERATED);
     nes->ppu.texture = SDL_CreateTexture(nes->ppu.renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STATIC, 256, 240);
 }
@@ -60,13 +60,22 @@ void ppu_write(struct nes *nes, u16 addr, u8 value)
 {
     switch (addr & 0x7)
     {
+    // case 4:
+    //     nes->ppu.registers.OAMDATA = value;
+    //     nes->ppu.registers.OAMADDR++;
+    //     break;
     case 0:
-        if (((value & 0x80) & (nes->ppu.registers.PPUSTATUS & 0x80)) == 0x80)
+        if ((nes->ppu.registers.PPUSTATUS & PPUSTATUS_VBLANK) && (value & 0x80))
+        {
+            // check this implementation later
             cpu_interrupt(nes, NMI_VECTOR);
+        }
+
         nes->ppu.registers.PPUCTRL = value;
         //    t: ...GH.. ........ <- d: ......GH
         //    <used elsewhere> <- d: ABCDEF..
         nes->ppu.scroll.t = (nes->ppu.scroll.t & ~VT_NAMETABLE_SEL) | (nes->ppu.registers.PPUCTRL & PPUCTRL_NAMETABLE) << 10;
+
         // update pointers for backgorund and sprites
         nes->ppu.bg_tile = (struct tile *) &nes->ppu.chr_rom[(0x1000 * ((nes->ppu.registers.PPUCTRL & PPUCTRL_BG_TABLE) >> 4))];
         nes->ppu.sprt_tile = (struct tile *) &nes->ppu.chr_rom[(0x1000 * ((nes->ppu.registers.PPUCTRL & PPUCTRL_SPRITE_TABLE) >> 3))];
@@ -159,16 +168,6 @@ u8 ppu_read(struct nes *nes, u16 addr)
     u8 ret_val;
     switch (addr & 0xF)
     {
-    case 0:
-        return 0;
-    case 1:
-        return 0;
-    case 5:
-        return 0;
-    case 6:
-        return 0;
-    case 3:
-        return 0;
     case 2:
         ret_val = nes->ppu.registers.PPUSTATUS;
         nes->ppu.registers.PPUSTATUS &= ~PPUSTATUS_VBLANK;
@@ -232,7 +231,7 @@ void ppu_tick(struct nes *nes)
     static u8 attr_latch_low;
 
     static u8 pallete_index;
-    static u8 pixel;
+    static u8 bg_pixel;
     static uint32_t color;
 
     static u16 nametable_addr;
@@ -243,8 +242,6 @@ void ppu_tick(struct nes *nes)
 //  Visible scanlines (0-239)
 if (nes->ppu.scanline < 240 || (nes->ppu.scanline == 261 && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG))
 {
-    if (nes->ppu.scanline == 30)
-        nes->ppu.registers.PPUSTATUS |= PPUSTATUS_0_HIT;
     // Cycles 0-256 Data for each bg tile is fetched here
     // Cycles 257-320 Sprites for the Next scanline are fetched here
     // Cycles 321-336 This is where the first two tiles for the next scanline are fetched
@@ -319,7 +316,7 @@ if (nes->ppu.scanline < 240 || (nes->ppu.scanline == 261 && nes->ppu.registers.P
 
             // i dont like these lines, tryna find a solution for these
             pallete_index = ((attr_sr_low >> (7 - nes->ppu.scroll.fine_x)) & 0x1) | ((attr_sr_hi >> (7 - nes->ppu.scroll.fine_x) & 0x1)) << 1;
-            pixel = ((bg_sr_hi >> (7 - nes->ppu.scroll.fine_x)) & 0x1) | ((bg_sr_low >> (7 - nes->ppu.scroll.fine_x) & 0x1)) << 1;
+            bg_pixel = ((bg_sr_hi >> (7 - nes->ppu.scroll.fine_x)) & 0x1) | ((bg_sr_low >> (7 - nes->ppu.scroll.fine_x) & 0x1)) << 1;
 
             bg_sr_hi = bg_sr_hi >> 15 | bg_sr_hi << 1;
             bg_sr_low = bg_sr_low >> 15 | bg_sr_low << 1;
@@ -328,10 +325,15 @@ if (nes->ppu.scanline < 240 || (nes->ppu.scanline == 261 && nes->ppu.registers.P
         }
     }
 
-    if (nes->ppu.cycles == 250)
+    if (bg_pixel)
+        color = pallete[nes->ppu.palettes.background[pallete_index].color[bg_pixel]];
+    else
+        color = pallete[nes->ppu.pallete_ram[0]];
+
+    if (nes->ppu.cycles == 256)
     {
         if (nes->ppu.registers.PPUMASK & PPUMASK_SHOW_SPRITES)
-        { 
+        {
             for (int sprite_index = 0; sprite_index < 64; sprite_index++)
             {
                 if (nes->ppu.oam.sprite[sprite_index].y_pos > nes->ppu.scanline - 8 && nes->ppu.oam.sprite[sprite_index].y_pos <= nes->ppu.scanline)
@@ -354,7 +356,12 @@ if (nes->ppu.scanline < 240 || (nes->ppu.scanline == 261 && nes->ppu.registers.P
                                                                                                        : ((tile_row_hi >> (7 - bit)) & 0x1) | ((tile_row_low >> (7 - bit)) & 0x1) << 1;
                         if (sprite_pixel)
                         {
-                            if (!(nes->ppu.oam.sprite[sprite_index].attributes & ATTR_PRIO))
+                            if (sprite_index == 0)
+                            {
+                                nes->ppu.registers.PPUSTATUS |= PPUSTATUS_0_HIT;
+                            }
+
+                            if (!(nes->ppu.oam.sprite[sprite_index].attributes & ATTR_PRIO) || nes->ppu.framebuffer[(nes->ppu.scanline * 256) + (nes->ppu.oam.sprite[sprite_index].x_pos) + bit] == 0x000000FF)
                             {
                                 color = pallete[nes->ppu.palettes.sprite[nes->ppu.oam.sprite[sprite_index].attributes & ATTR_PALETTE].color[sprite_pixel]];
                                 nes->ppu.framebuffer[(nes->ppu.scanline * 256) + (nes->ppu.oam.sprite[sprite_index].x_pos) + bit] = color;
@@ -365,11 +372,6 @@ if (nes->ppu.scanline < 240 || (nes->ppu.scanline == 261 && nes->ppu.registers.P
             }
         }
     }
-
-    if (pixel)
-        color = pallete[nes->ppu.palettes.background[pallete_index].color[pixel]];
-    else
-        color = pallete[nes->ppu.pallete_ram[0]];
 
     if (nes->ppu.cycles < 256 && nes->ppu.scanline < 240)
         nes->ppu.framebuffer[(nes->ppu.scanline * 256) + nes->ppu.cycles] = color;
@@ -422,7 +424,7 @@ if (nes->ppu.scanline < 240 || (nes->ppu.scanline == 261 && nes->ppu.registers.P
         //Pre-render scanline (-1 or 261)
         //This is a dummy scanline, whose sole purpose is to fill the shift registers with the data for the first two tiles of the next scanline.
         //Although no pixels are rendered for this scanline, the PPU still makes the same memory accesses it would for a regular scanline.
-        if (nes->ppu.scanline > 261)
+        if (nes->ppu.scanline == 262)
         {
             nes->ppu.registers.PPUSTATUS &= ~PPUSTATUS_0_HIT;
             nes->ppu.registers.PPUSTATUS &= ~PPUSTATUS_VBLANK;
@@ -430,18 +432,17 @@ if (nes->ppu.scanline < 240 || (nes->ppu.scanline == 261 && nes->ppu.registers.P
             return;
         }
 
-        else if (nes->ppu.scanline == 241)
+        if (nes->ppu.scanline == 241)
         {
-            SDL_Delay(10);
             SDL_UpdateTexture(nes->ppu.texture, NULL, nes->ppu.framebuffer, 256 * sizeof(uint32_t));
             SDL_RenderCopy(nes->ppu.renderer, nes->ppu.texture, NULL, NULL);
             SDL_RenderPresent(nes->ppu.renderer);
 
             nes->ppu.registers.PPUSTATUS |= PPUSTATUS_VBLANK;
+
             if (nes->ppu.registers.PPUCTRL & PPUCONTROL_NMI)
             {
                 cpu_interrupt(nes, NMI_VECTOR);
-                nes->ppu.registers.PPUCTRL &= ~PPUCONTROL_NMI;
             }
         }
     }

@@ -1,15 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "common.h"
 #include "nes.h"
 #include "cpu.h"
 #include "ppu.h"
 #include "cart.h"
+#include "io.h"
 
 void nes_run(struct nes *nes)
 {
     unsigned ppu_cycles;
     SDL_Event event;
+
     bool quit;
     while (!nes->cpu.uoc && !quit)
     {
@@ -17,7 +20,73 @@ void nes_run(struct nes *nes)
         {
             if (event.type == SDL_QUIT)
                 quit = true;
+
+            switch (event.type)
+            {
+            case SDL_KEYDOWN:
+                switch (event.key.keysym.sym)
+                {
+                case SDLK_z:
+                    nes->keystate |= JOY_BUTTON_A;
+                    break;
+                case SDLK_x:
+                    nes->keystate |= JOY_BUTTON_B;
+                    break;
+                case SDLK_c:
+                    nes->keystate |= JOY_BUTTON_START;
+                    break;
+                case SDLK_v:
+                    nes->keystate |= JOY_BUTTON_SEL;
+                    break;
+                case SDLK_UP:
+                    nes->keystate |= JOY_BUTTON_UP;
+                    break;
+                case SDLK_LEFT:
+                    nes->keystate |= JOY_BUTTON_LEFT;
+                    break;
+                case SDLK_DOWN:
+                    nes->keystate |= JOY_BUTTON_DOWN;
+                    break;
+                case SDLK_RIGHT:
+                    nes->keystate |= JOY_BUTTON_RIGHT;
+                    break;
+                default:
+                    break;
+                }break;
+
+            case SDL_KEYUP:
+                switch (event.key.keysym.sym)
+                {
+                case SDLK_z:
+                    nes->keystate &= ~JOY_BUTTON_A;
+                    break;
+                case SDLK_x:
+                    nes->keystate &= ~JOY_BUTTON_B;
+                    break;
+                case SDLK_c:
+                    nes->keystate &= ~JOY_BUTTON_START;
+                    break;
+                case SDLK_v:
+                    nes->keystate &= ~JOY_BUTTON_SEL;
+                    break;
+                case SDLK_UP:
+                    nes->keystate &= ~JOY_BUTTON_UP;
+                    break;
+                case SDLK_LEFT:
+                    nes->keystate &= ~JOY_BUTTON_LEFT;
+                    break;
+                case SDLK_DOWN:
+                    nes->keystate &= ~JOY_BUTTON_DOWN;
+                    break;
+                case SDLK_RIGHT:
+                    nes->keystate &= ~JOY_BUTTON_RIGHT;
+                    break;
+                default:
+                    break;
+                }break;
+            }
         }
+        // assert(nes->ram[0x03A1] == 0x4C);
         nes->cpu.cycles += cpu_execute(nes);
         ppu_cycles = nes->cpu.cycles * 3;
         for (unsigned i = 0; i < ppu_cycles; i++)
@@ -34,10 +103,12 @@ u8 nes_read8(struct nes *nes, u16 addr)
         case 0: return nes->ram[addr & 0x7FF]; // $0000-$07FF
         case 1: return ppu_read(nes, addr);
         case 2:
-            //printf("NOT IMPLEMENTED IO/APU READ: %04x\n", addr);
+            if(addr == 0x4016) return io_joy_read(nes, 0x4016);
+            else if (addr == 0x4017) return io_joy_read(nes, 0x4017);
+            printf("NOT IMPLEMENTED IO/APU READ: %04x\n", addr);
             return 0;
         case 3:
-           // printf("NOT IMPLEMENTED READ %04x\n", addr);
+            printf("NOT IMPLEMENTED READ %04x\n", addr);
             nes->cpu.uoc = true;
             return 0;
         default: return nes->cart.mapper.mapper_read(&nes->cart.mapper, addr);
@@ -65,11 +136,17 @@ void nes_write8(struct nes *nes, u16 addr, u8 value)
                 }
                 return;
             }
-            //printf("NOT IMPLEMENTED IO/APU WRITE: %04x\n", addr);
+            else if (addr == 0x4016)
+            {
+                nes->clk = value & 1;
+                if(nes->clk)
+                    nes->io[0x16] = nes->keystate;
+            }
+            //printf("VALUE : %02x NOT IMPLEMENTED IO/APU WRITE: %04x\n",value,  addr);
             break;
         case 3:
             printf("NOT IMPLEMENTED CART WRITE %04x\n", addr);
-            nes->cpu.uoc = true;
+            //nes->cpu.uoc = true;
             break;
         default: nes->cart.mapper.mapper_read(&nes->cart.mapper, addr); break;
     };
