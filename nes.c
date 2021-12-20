@@ -86,7 +86,7 @@ void nes_run(struct nes *nes)
                 }break;
             }
         }
-        // assert(nes->ram[0x03A1] == 0x4C);
+        
         nes->cpu.cycles += cpu_execute(nes);
         ppu_cycles = nes->cpu.cycles * 3;
         for (unsigned i = 0; i < ppu_cycles; i++)
@@ -138,8 +138,7 @@ void nes_write8(struct nes *nes, u16 addr, u8 value)
             }
             else if (addr == 0x4016)
             {
-                nes->clk = value & 1;
-                if(nes->clk)
+                if (value & 1)
                     nes->io[0x16] = nes->keystate;
             }
             //printf("VALUE : %02x NOT IMPLEMENTED IO/APU WRITE: %04x\n",value,  addr);

@@ -231,7 +231,6 @@ struct nes
     struct cart cart;
     long long int total_cycles;
     u8 keystate;
-    bool clk;
 };
 
 u8 nes_read8(struct nes *nes, u16 addr);
