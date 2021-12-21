@@ -85,6 +85,7 @@ struct ppu
     u8 *chr_rom;
     u8 vram[0x800];
 
+
     union
     {
         u8 pallete_ram[0x20];
@@ -108,7 +109,6 @@ struct ppu
             {
                 u8 color[4];
             } sprite[4];
-            u8 bg_color;
         } palettes;
     };
 
@@ -202,33 +202,47 @@ struct header
     u8 unused[0x5];
 };
 
-struct mapper
-{
-    bool uses_prg_ram;
-    bool uses_chr_ram;
-    u8 *prg_rom_bank[2];
-    u8 (*mapper_read)(struct mapper *mapper, u16 addr);
-    void (*mapper_write)(struct mapper *mapper, u16 addr, u8 value);
-};
+
+
 
 struct cart
 {
     struct header header;
     u8 *prg_rom;
+
+    struct prg_rom_banks
+    {
+        u8 bank[0x4000];
+    } * prg_rom_banks;
+    
     u8 *chr_rom;
     int prg_rom_size;
     int chr_rom_size;
-    struct mapper mapper;
     u8 mapper_index;
 };
+
 
 struct nes
 {
     u8 ram[0x800];
     u8 io[0x18];
+
     struct ppu ppu;
     struct cpu cpu;
     struct cart cart;
+
+    struct mapper
+    {
+        bool uses_prg_ram;
+        bool uses_chr_ram;
+        u8 *prg_ram;
+        u8 *chr_ram;
+        u8 *prg_rom_bank[2];
+        u8 (*mapper_read)(struct nes *nes, u16 addr);
+        void (*mapper_write)(struct nes *nes, u16 addr, u8 value);
+    }mapper;
+
+
     long long int total_cycles;
     u8 keystate;
 };
