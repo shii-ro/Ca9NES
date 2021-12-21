@@ -86,7 +86,7 @@ void nes_run(struct nes *nes)
                 }break;
             }
         }
-        
+
         nes->cpu.cycles += cpu_execute(nes);
         ppu_cycles = nes->cpu.cycles * 3;
         for (unsigned i = 0; i < ppu_cycles; i++)
@@ -100,18 +100,15 @@ u8 nes_read8(struct nes *nes, u16 addr)
 {
     switch(addr >> 13)
     {
-        case 0: return nes->ram[addr & 0x7FF]; // $0000-$07FF
-        case 1: return ppu_read(nes, addr);
-        case 2:
+        case 0: return nes->ram[addr & 0x7FF]; // $0000-$1FFF
+        case 1: return ppu_read(nes, addr); // 2000-$3FFF
+        case 2:                             // $4000-$5FFF
             if(addr == 0x4016) return io_joy_read(nes, 0x4016);
             else if (addr == 0x4017) return io_joy_read(nes, 0x4017);
             printf("NOT IMPLEMENTED IO/APU READ: %04x\n", addr);
             return 0;
-        case 3:
-            printf("NOT IMPLEMENTED READ %04x\n", addr);
-            nes->cpu.uoc = true;
-            return 0;
-        default: return nes->cart.mapper.mapper_read(&nes->cart.mapper, addr);
+        case 3: return nes->mapper.mapper_read(nes, addr); // $6000-$7FFF
+        default: return nes->mapper.mapper_read(nes, addr);
     };
 }
 
@@ -143,11 +140,8 @@ void nes_write8(struct nes *nes, u16 addr, u8 value)
             }
             //printf("VALUE : %02x NOT IMPLEMENTED IO/APU WRITE: %04x\n",value,  addr);
             break;
-        case 3:
-            printf("NOT IMPLEMENTED CART WRITE %04x\n", addr);
-            //nes->cpu.uoc = true;
-            break;
-        default: nes->cart.mapper.mapper_read(&nes->cart.mapper, addr); break;
+        case 3: nes->mapper.mapper_write(nes, addr, value); break;
+        default: nes->mapper.mapper_write(nes, addr, value); break;
     };
 }
 
