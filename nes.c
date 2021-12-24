@@ -11,20 +11,20 @@
 void nes_run(struct nes *nes)
 {
     unsigned ppu_cycles;
-    SDL_Event event;
+    SDL_Event e;
 
     bool quit;
     while (!nes->cpu.uoc && !quit)
     {
-        while (SDL_PollEvent(&event))
+        while (SDL_PollEvent(&e))
         {
-            if (event.type == SDL_QUIT)
+            if (e.type == SDL_QUIT)
                 quit = true;
 
-            switch (event.type)
+            switch (e.type)
             {
             case SDL_KEYDOWN:
-                switch (event.key.keysym.sym)
+                switch (e.key.keysym.sym)
                 {
                 case SDLK_z:
                     nes->keystate |= JOY_BUTTON_A;
@@ -55,7 +55,7 @@ void nes_run(struct nes *nes)
                 }break;
 
             case SDL_KEYUP:
-                switch (event.key.keysym.sym)
+                switch (e.key.keysym.sym)
                 {
                 case SDLK_z:
                     nes->keystate &= ~JOY_BUTTON_A;
@@ -86,7 +86,6 @@ void nes_run(struct nes *nes)
                 }break;
             }
         }
-
         nes->cpu.cycles += cpu_execute(nes);
         ppu_cycles = nes->cpu.cycles * 3;
         for (unsigned i = 0; i < ppu_cycles; i++)
@@ -138,7 +137,7 @@ void nes_write8(struct nes *nes, u16 addr, u8 value)
                 if (value & 1)
                     nes->io[0x16] = nes->keystate;
             }
-            //printf("VALUE : %02x NOT IMPLEMENTED IO/APU WRITE: %04x\n",value,  addr);
+
             break;
         case 3: nes->mapper.mapper_write(nes, addr, value); break;
         default: nes->mapper.mapper_write(nes, addr, value); break;

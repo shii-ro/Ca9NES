@@ -45,6 +45,18 @@ struct tile
     u8 low[8];
 };
 
+struct sprite
+{
+    u8 y_pos;
+    u8 tile_index;
+    #define ATTR_FLIP_V 0b10000000
+    #define ATTR_FLIP_H 0b01000000
+    #define ATTR_PRIO 0b00100000
+    #define ATTR_PALETTE 0b00000011
+    u8 attributes;
+    u8 x_pos;
+};
+
 struct ppu
 {
     struct
@@ -119,22 +131,10 @@ struct ppu
     {
         uint32_t oam_32[64];
         u8 oam_bytes[256];
-        struct
-        {
-            u8 y_pos;
-            u8 tile_index;
-            #define ATTR_FLIP_V 0b10000000
-            #define ATTR_FLIP_H 0b01000000
-            #define ATTR_PRIO 0b00100000
-            #define ATTR_PALETTE 0b00000011
-            u8 attributes;
-            u8 x_pos;
-        } sprite[64];
+        struct sprite sprite[64];
     } oam;
 
     struct tile *bg_tile;
-    struct tile *sprt_tile;
-
     // A nametable is a 1024 byte area of memory used by the PPU to lay out backgrounds.
     // Each byte in the nametable controls one 8x8 pixel character cell, and each nametable has 30 rows of 32 tiles each,
     // for 960 ($3C0) bytes; the rest is used by each nametable's attribute table.

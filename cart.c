@@ -37,10 +37,10 @@ void cart_load_rom(struct nes *nes, FILE *rom)
     nes->cart.prg_rom = malloc(nes->cart.prg_rom_size);
 
     fread(nes->cart.prg_rom, sizeof(u8), nes->cart.prg_rom_size, rom);
-    nes->cart.prg_rom_banks = (struct prg_rom_banks *) &nes->cart.prg_rom;
+    nes->cart.prg_rom_banks = (struct prg_rom_banks *)&nes->cart.prg_rom;
     if (nes->mapper.uses_chr_ram)
     {
-        printf("uUSES CHR RAM\n");
+        printf("USES CHR RAM\n");
         nes->cart.chr_rom = malloc(sizeof(u8) * 0x2000);
     }
     else
@@ -49,7 +49,8 @@ void cart_load_rom(struct nes *nes, FILE *rom)
         fread(nes->cart.chr_rom, sizeof(u8), nes->cart.chr_rom_size, rom);
     }
 
-    if (nes->mapper.uses_prg_ram || true){
+    if (nes->mapper.uses_prg_ram || true)
+    {
         printf("Uses PRG RAM\n");
         nes->mapper.prg_ram = malloc(sizeof(u8) * 0x2000);
     }
