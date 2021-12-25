@@ -305,12 +305,11 @@ void ppu_tick(struct nes *nes)
             }
         }
 
-        if (nes->ppu.cycles == 257)
+        if (nes->ppu.cycles == 300 && nes->ppu.scanline < 240)
         {
             curr_sprite = &nes->ppu.oam.sprite[0];
             sprite_counter = 0;
             oam_counter = 0;
-
             for (int sprite = 0; sprite < 64; sprite++)
             {
                 if (nes->ppu.scanline >= curr_sprite->y_pos &&
@@ -340,7 +339,7 @@ void ppu_tick(struct nes *nes)
                     }
 
                     sec_oam[oam_counter] = *curr_sprite;
-                    sec_oam_index[oam_counter++] = sprite_counter;
+                    sec_oam_index[oam_counter++] = sprite;
                     sprites[sprite_counter++] = sprite_pattern;
                 }
                 curr_sprite++;
@@ -350,25 +349,21 @@ void ppu_tick(struct nes *nes)
         if (nes->ppu.cycles < 256 && nes->ppu.scanline < 240)
         {
             color = (bg_pixel) ? pallete[nes->ppu.palettes.background[pallete_index].color[bg_pixel]] : pallete[nes->ppu.pallete_ram[0]];
-
             if (nes->ppu.registers.PPUMASK & PPUMASK_SHOW_SPRITES && nes->ppu.scanline != 0)
             {
                 for (int i = 0; i < oam_counter; i++)
                 {
-                    if (((nes->ppu.cycles - sec_oam[i].x_pos) >= 0))
+                    u16 x = (nes->ppu.cycles - sec_oam[i].x_pos);
+                    if (x >= 8) continue;
+                    u8 sprite_pixel = ((sprites[i] >> (x * 2)) & 0x3);
+                    if (!sprite_pixel) continue;
+                    if (sec_oam_index[i] == 0 && nes->ppu.cycles < 255 && bg_pixel)
                     {
-                        u8 sprite_pixel = sprites[i] & 0x3;
-                        if (sprite_pixel)
-                        {
-                            if (sec_oam_index[i] == 0 && nes->ppu.cycles < 255 && bg_pixel)
-                            {
-                                nes->ppu.registers.PPUSTATUS |= PPUSTATUS_0_HIT;
-                            }
-                            if (!(sec_oam[i].attributes & ATTR_PRIO) || !bg_pixel)
-                                color = pallete[nes->ppu.palettes.sprite[sec_oam[i].attributes & ATTR_PALETTE].color[sprite_pixel]];
-                        }
-                        sprites[i] >>= 2;
+                        nes->ppu.registers.PPUSTATUS |= PPUSTATUS_0_HIT;
                     }
+                    if (!(sec_oam[i].attributes & ATTR_PRIO) || !bg_pixel)
+                        color = pallete[nes->ppu.palettes.sprite[sec_oam[i].attributes & ATTR_PALETTE].color[sprite_pixel]];
+                    break;
                 }
             }
             nes->ppu.framebuffer[(nes->ppu.scanline * 256) + nes->ppu.cycles] = color;
