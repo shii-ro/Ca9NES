@@ -11,7 +11,6 @@ const uint32_t pallete[64] =
         0xeceeecFF, 0x4c9aecFF, 0x787cecFF, 0xb062ecff, 0xe454ecff, 0xec58b4ff, 0xec6a64ff, 0xd48820ff, 0xa0aa00ff, 0x74c400ff, 0x4cd020ff, 0x38cc6cff, 0x38b4ccff, 0x3c3c3cff, 0x000000FF, 0x000000FF,
         0xeceeecff, 0xa8ccecff, 0xbcbcecff, 0xd4b2ecff, 0xecaeecff, 0xecaed4ff, 0xecb4b0ff, 0xe4c490ff, 0xccd278ff, 0xb4de78ff, 0xa8e290ff, 0x98e2b4ff, 0xa0d6e4ff, 0xa0a2a0ff, 0x000000FF, 0x000000FF};
 
-// gets ride of some bitwise fuckery
 u8 attr_table_lut[] =
     {
         0, 0, 2, 2,
@@ -25,13 +24,8 @@ void ppu_init(struct nes *nes)
     nes->ppu.chr_rom = nes->cart.chr_rom;
     nes->ppu.scanline = 240;
 
-    // First Vram page = 0x0000
-    // Second Vram Page = 0x0400
     if (nes->cart.header.flags_6 & 0x01)
     {
-        // Base nametable address
-        // (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
-        //(Vertical mirroring: $2000 equals $2800 and $2400 equals $2C00 (e.g. Super Mario Bros.))
         nes->ppu.nametable[0] = (union nametable *)&nes->ppu.vram[0x000];    // $2000
         nes->ppu.nametable[1] = (union nametable *)&nes->ppu.vram[0x400]; // $2400
         nes->ppu.nametable[2] = (union nametable *)&nes->ppu.vram[0x000];    // $2800
@@ -39,9 +33,6 @@ void ppu_init(struct nes *nes)
     }
     else
     {
-        // Base nametable address
-        // (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
-        // Horizontal mirroring: $2000 equals $2400 and $2800 equals $2C00 (e.g. Kid Icarus)
         nes->ppu.nametable[0] = (union nametable *)&nes->ppu.vram[0x0];   // $2000
         nes->ppu.nametable[1] = (union nametable *)&nes->ppu.vram[0x000];   // $2400
         nes->ppu.nametable[2] = (union nametable *)&nes->ppu.vram[0x400]; // $2800
@@ -72,13 +63,8 @@ void ppu_write(struct nes *nes, u16 addr, u8 value)
             // check this implementation later
             // cpu_interrupt(nes, NMI_VECTOR);
         }
-
         nes->ppu.registers.PPUCTRL = value;
-        //    t: ...GH.. ........ <- d: ......GH
-        //    <used elsewhere> <- d: ABCDEF..
         nes->ppu.scroll.t = (nes->ppu.scroll.t & ~VT_NAMETABLE_SEL) | (nes->ppu.registers.PPUCTRL & PPUCTRL_NAMETABLE) << 10;
-
-        // update pointers for backgorund and sprites
         nes->ppu.bg_tile = (struct tile *) &nes->ppu.chr_rom[(0x1000 * ((nes->ppu.registers.PPUCTRL & PPUCTRL_BG_TABLE) >> 4))];
         break;
     case 1:
@@ -88,28 +74,14 @@ void ppu_write(struct nes *nes, u16 addr, u8 value)
         nes->ppu.registers.OAMADDR = value;
         break;
     case 5:
-        // yyy NN YYYYY XXXXX
-        // ||| || ||||| +++++-- coarse X scroll
-        // ||| || +++++-------- coarse Y scroll
-        // ||| ++-------------- nametable select
-        // +++----------------- fine Y scroll
-
         if (!nes->ppu.scroll.w) // w is not set
         {
-            // $2005 first write (w is 0)
-            // t: ....... ...ABCDE <- d: ABCDE...
-            // x:              FGH <- d: .....FGH
-            // w:                  <- 1
             nes->ppu.scroll.fine_x = (value & 0b111);
             nes->ppu.scroll.t = (nes->ppu.scroll.t & ~VT_COARSE_X) | (value >> 3);
             nes->ppu.scroll.w = true;
         }
         else
         {
-            // $2005 second write (w is 1)
-            // t: FGH..AB CDE..... <- d: ABCDEFGH
-            // w:                  <- 0
-            // printf("Value: %02x T: %04x \n", value, nes->ppu.scroll.t);
             nes->ppu.scroll.t = (nes->ppu.scroll.t & ~VT_FINE_Y) | ((value & 0b111) << 12);
             nes->ppu.scroll.t = (nes->ppu.scroll.t & ~VT_COARSE_Y) | (value & 0b11111000) << 2;
             nes->ppu.scroll.w = false;
@@ -118,28 +90,18 @@ void ppu_write(struct nes *nes, u16 addr, u8 value)
     case 6:
         if (!nes->ppu.scroll.w)
         {
-            // t: .CDEFGH ........ <- d: ..CDEFGH
-            // <unused>     <- d: AB......
-            // t: Z...... ........ <- 0 (bit Z is cleared)
-            // w:                  <- 1
-            // check this line later
             nes->ppu.scroll.t = (nes->ppu.scroll.t & ~0x3F00) | (value & 0b00111111) << 8;
             nes->ppu.scroll.t = (nes->ppu.scroll.t & ~0x4000);
             nes->ppu.scroll.w = true;
         }
         else
         {
-            //  t: ....... ABCDEFGH <- d: ABCDEFGH
-            // v: <...all bits...> <- t: <...all bits...>
-            // w:                  <- 0
             nes->ppu.scroll.t = (nes->ppu.scroll.t & ~0x00FF) | value;
             nes->ppu.scroll.v = nes->ppu.scroll.t;
             nes->ppu.scroll.w = false;
         }
         break;
     case 7:
-        // Vertical mirroring: $2000 equals $2800 and $2400 equals $2C00 (e.g. Super Mario Bros.))
-        // Horizontal mirroring: $2000 equals $2400 and $2800 equals $2C00 (e.g. Kid Icarus)
         if (nes->ppu.scroll.v < 0x2000)
         {
             nes->ppu.chr_rom[nes->ppu.scroll.v] = value;
@@ -187,7 +149,6 @@ u8 ppu_read(struct nes *nes, u16 addr)
             ret_val = nes->ppu.data_buf;
             if (nes->ppu.scroll.v < 0x2000)
             {
-                printf("ADDR: %04x\n", nes->ppu.scroll.v);
                 nes->ppu.data_buf = nes->ppu.chr_rom[nes->ppu.scroll.v];
             }
             else
@@ -254,7 +215,6 @@ void ppu_tick(struct nes *nes)
                 switch ((nes->ppu.cycles) % 8)
                 {
                 case 0: // fetch nametable addr
-                    // the shifters are reloaded every 8 cycles
                     bg_sr = (bg_sr & 0x0000FFFF) | bg_pattern << 16;
                     attr_sr = (attr_sr & 0x0000FFFF) | attr_pattern << 16;
 
@@ -412,11 +372,7 @@ void ppu_tick(struct nes *nes)
     {
         nes->ppu.cycles = 0;
         nes->ppu.scanline++;
-        // something happens when the scanline increases ?
-
-        //Pre-render scanline (-1 or 261)
-        //This is a dummy scanline, whose sole purpose is to fill the shift registers with the data for the first two tiles of the next scanline.
-        //Although no pixels are rendered for this scanline, the PPU still makes the same memory accesses it would for a regular scanline.
+        
         if (nes->ppu.scanline == 262)
         {
             nes->ppu.registers.PPUSTATUS &= ~PPUSTATUS_0_HIT;

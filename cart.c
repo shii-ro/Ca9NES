@@ -6,6 +6,7 @@
 #include "cart.h"
 #include "mappers/mapper00.c"
 #include "mappers/mapper01.c"
+#include "mappers/uxrom.c"
 
 void cart_load_header(struct nes *nes, FILE *rom )
 {
@@ -80,6 +81,7 @@ void mapper_init(struct nes *nes)
     {
     case 0x00: mapper00_init(nes); break;
     case 0x01: mapper01_init(nes); break;
+    case 0x02: uxrom_init(nes); break;
     default:
         printf("Mapper not implemented: %02x\n", nes->cart.mapper_index);
     }

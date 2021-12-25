@@ -125,7 +125,9 @@ void nes_write8(struct nes *nes, u16 addr, u8 value)
         case 2:
             if (addr == 0x4014)
             {
-                u16 baseaddr = nes->ppu.registers.OAMADDR << 8 | 0x00;
+
+                u16 baseaddr = (nes->ppu.registers.OAMADDR << 8) | 0x00;
+                
                 for (int i = 0; i < 256; i++)
                 {
                     nes->ppu.oam.oam_bytes[i] = nes_read8(nes, baseaddr + 0x200 + i);
