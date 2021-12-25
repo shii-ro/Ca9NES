@@ -93,10 +93,8 @@ struct ppu
     u8 data_buf;
     u16 cycles;
     u16 scanline;
-    u16 addr_latch;
     u8 *chr_rom;
     u8 vram[0x800];
-
 
     union
     {
@@ -129,7 +127,6 @@ struct ppu
     // where each sprite's information occupies 4 bytes.
     union
     {
-        uint32_t oam_32[64];
         u8 oam_bytes[256];
         struct sprite sprite[64];
     } oam;
@@ -186,9 +183,6 @@ struct ppu
     SDL_Texture *texture;
 };
 
-#define PPUSTATUS_VBLANK 0b10000000
-#define PPUCONTROL_NMI 0b10000000
-
 struct header
 {
     u8 constant[0x4]; // Constant $4E $45 $53 $1A ("NES" followed by MS-DOS end-of-file)
@@ -214,7 +208,7 @@ struct cart
     {
         u8 bank[0x4000];
     } * prg_rom_banks;
-    
+
     u8 *chr_rom;
     int prg_rom_size;
     int chr_rom_size;
@@ -241,7 +235,6 @@ struct nes
         u8 (*mapper_read)(struct nes *nes, u16 addr);
         void (*mapper_write)(struct nes *nes, u16 addr, u8 value);
     }mapper;
-
 
     long long int total_cycles;
     u8 keystate;

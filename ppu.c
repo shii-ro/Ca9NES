@@ -3,6 +3,22 @@
 #include <stdio.h>
 #include <string.h>
 
+enum
+{
+    PPUCTRL,
+    PPUMASK,
+    PPUSTATUS,
+    OAMADDR,
+    OAMDATA,
+    PPUSCROLL,
+    PPUADDR,
+    PPUDATA,
+} PPU_REGISTERS;
+
+#define VISIBLE_SCANLINE    240
+#define PRERENDER_SCANLINE  261
+#define VBLANK_SCANLINE     241
+
 // not doing this shit again
 const uint32_t pallete[64] =
     {
@@ -11,7 +27,7 @@ const uint32_t pallete[64] =
         0xeceeecFF, 0x4c9aecFF, 0x787cecFF, 0xb062ecff, 0xe454ecff, 0xec58b4ff, 0xec6a64ff, 0xd48820ff, 0xa0aa00ff, 0x74c400ff, 0x4cd020ff, 0x38cc6cff, 0x38b4ccff, 0x3c3c3cff, 0x000000FF, 0x000000FF,
         0xeceeecff, 0xa8ccecff, 0xbcbcecff, 0xd4b2ecff, 0xecaeecff, 0xecaed4ff, 0xecb4b0ff, 0xe4c490ff, 0xccd278ff, 0xb4de78ff, 0xa8e290ff, 0x98e2b4ff, 0xa0d6e4ff, 0xa0a2a0ff, 0x000000FF, 0x000000FF};
 
-u8 attr_table_lut[] =
+const u8 attr_table_lut[] =
     {
         0, 0, 2, 2,
         0, 0, 2, 2,
@@ -26,15 +42,15 @@ void ppu_init(struct nes *nes)
 
     if (nes->cart.header.flags_6 & 0x01)
     {
-        nes->ppu.nametable[0] = (union nametable *)&nes->ppu.vram[0x000];    // $2000
+        nes->ppu.nametable[0] = (union nametable *)&nes->ppu.vram[0x000]; // $2000
         nes->ppu.nametable[1] = (union nametable *)&nes->ppu.vram[0x400]; // $2400
-        nes->ppu.nametable[2] = (union nametable *)&nes->ppu.vram[0x000];    // $2800
+        nes->ppu.nametable[2] = (union nametable *)&nes->ppu.vram[0x000]; // $2800
         nes->ppu.nametable[3] = (union nametable *)&nes->ppu.vram[0x400]; // $2C00
     }
     else
     {
         nes->ppu.nametable[0] = (union nametable *)&nes->ppu.vram[0x0];   // $2000
-        nes->ppu.nametable[1] = (union nametable *)&nes->ppu.vram[0x000];   // $2400
+        nes->ppu.nametable[1] = (union nametable *)&nes->ppu.vram[0x000]; // $2400
         nes->ppu.nametable[2] = (union nametable *)&nes->ppu.vram[0x400]; // $2800
         nes->ppu.nametable[3] = (union nametable *)&nes->ppu.vram[0x400]; // $2C00
     }
@@ -53,27 +69,23 @@ void ppu_write(struct nes *nes, u16 addr, u8 value)
 {
     switch (addr & 0x7)
     {
-    case 4:
-        nes->ppu.oam.oam_bytes[nes->ppu.registers.OAMADDR] = value;
-        nes->ppu.registers.OAMADDR++;
-        break;
-    case 0:
-        if ((nes->ppu.registers.PPUSTATUS & PPUSTATUS_VBLANK) && (value & 0x80))
-        {
-            // check this implementation later
-            // cpu_interrupt(nes, NMI_VECTOR);
-        }
+    case PPUCTRL:
+        if ((nes->ppu.registers.PPUSTATUS & PPUSTATUS_VBLANK) && (value & 0x80) && !(nes->ppu.registers.PPUCTRL & 0x80) && nes->ppu.scanline >= 241)
+            cpu_interrupt(nes, NMI_VECTOR);
         nes->ppu.registers.PPUCTRL = value;
         nes->ppu.scroll.t = (nes->ppu.scroll.t & ~VT_NAMETABLE_SEL) | (nes->ppu.registers.PPUCTRL & PPUCTRL_NAMETABLE) << 10;
         nes->ppu.bg_tile = (struct tile *) &nes->ppu.chr_rom[(0x1000 * ((nes->ppu.registers.PPUCTRL & PPUCTRL_BG_TABLE) >> 4))];
         break;
-    case 1:
+    case PPUMASK:
         nes->ppu.registers.PPUMASK = value;
         break;
-    case 3:
+    case OAMADDR:
         nes->ppu.registers.OAMADDR = value;
         break;
-    case 5:
+    case OAMDATA:
+        nes->ppu.oam.oam_bytes[nes->ppu.registers.OAMADDR++] = value;
+        break;
+    case PPUSCROLL:
         if (!nes->ppu.scroll.w) // w is not set
         {
             nes->ppu.scroll.fine_x = (value & 0b111);
@@ -87,7 +99,7 @@ void ppu_write(struct nes *nes, u16 addr, u8 value)
             nes->ppu.scroll.w = false;
         }
         break;
-    case 6:
+    case PPUADDR:
         if (!nes->ppu.scroll.w)
         {
             nes->ppu.scroll.t = (nes->ppu.scroll.t & ~0x3F00) | (value & 0b00111111) << 8;
@@ -101,7 +113,7 @@ void ppu_write(struct nes *nes, u16 addr, u8 value)
             nes->ppu.scroll.w = false;
         }
         break;
-    case 7:
+    case PPUDATA:
         if (nes->ppu.scroll.v < 0x2000)
         {
             nes->ppu.chr_rom[nes->ppu.scroll.v] = value;
@@ -138,12 +150,12 @@ u8 ppu_read(struct nes *nes, u16 addr)
     u8 ret_val;
     switch (addr & 0xF)
     {
-    case 2:
+    case PPUSTATUS:
         ret_val = nes->ppu.registers.PPUSTATUS;
         nes->ppu.registers.PPUSTATUS &= ~PPUSTATUS_VBLANK;
         nes->ppu.scroll.w = false;
         return (ret_val);
-    case 7:
+    case PPUDATA:
         if (nes->ppu.scroll.v < 0x3F00)
         {
             ret_val = nes->ppu.data_buf;
@@ -180,6 +192,7 @@ u8 ppu_read(struct nes *nes, u16 addr)
 
 void ppu_tick(struct nes *nes)
 {
+    static u16 frame_odd_even = 340;
     static uint32_t bg_sr;
     static u16 bg_pattern;
 
@@ -206,7 +219,7 @@ void ppu_tick(struct nes *nes)
     static u8 sec_oam_index[8];
 
     //  Visible scanlines (0-239)
-    if (nes->ppu.scanline < 240 || (nes->ppu.scanline == 261 && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG))
+    if ((nes->ppu.scanline < VISIBLE_SCANLINE || nes->ppu.scanline == PRERENDER_SCANLINE) && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
     {
         if (nes->ppu.cycles < 256 || (nes->ppu.cycles > 319 && nes->ppu.cycles < 336))
         {
@@ -265,7 +278,7 @@ void ppu_tick(struct nes *nes)
             }
         }
 
-        if (nes->ppu.cycles == 300 && nes->ppu.scanline < 240)
+        if (nes->ppu.cycles == 256 && nes->ppu.scanline < VISIBLE_SCANLINE)
         {
             curr_sprite = &nes->ppu.oam.sprite[0];
             sprite_counter = 0;
@@ -306,7 +319,7 @@ void ppu_tick(struct nes *nes)
             }
         }
 
-        if (nes->ppu.cycles < 256 && nes->ppu.scanline < 240)
+        if (nes->ppu.cycles < 256 && nes->ppu.scanline < VISIBLE_SCANLINE)
         {
             color = (bg_pixel) ? pallete[nes->ppu.palettes.background[pallete_index].color[bg_pixel]] : pallete[nes->ppu.pallete_ram[0]];
             if (nes->ppu.registers.PPUMASK & PPUMASK_SHOW_SPRITES && nes->ppu.scanline != 0)
@@ -318,9 +331,7 @@ void ppu_tick(struct nes *nes)
                     u8 sprite_pixel = ((sprites[i] >> (x * 2)) & 0x3);
                     if (!sprite_pixel) continue;
                     if (sec_oam_index[i] == 0 && nes->ppu.cycles < 255 && bg_pixel)
-                    {
                         nes->ppu.registers.PPUSTATUS |= PPUSTATUS_0_HIT;
-                    }
                     if (!(sec_oam[i].attributes & ATTR_PRIO) || !bg_pixel)
                         color = pallete[nes->ppu.palettes.sprite[sec_oam[i].attributes & ATTR_PALETTE].color[sprite_pixel]];
                     break;
@@ -336,7 +347,7 @@ void ppu_tick(struct nes *nes)
         }
 
         // Increase V every 256 cycles
-        if (nes->ppu.cycles == 251 && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
+        if (nes->ppu.cycles == 256 && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
         {
             if ((nes->ppu.scroll.v & VT_FINE_Y) != VT_FINE_Y) // if fine Y < 7
                 nes->ppu.scroll.v += 0x1000;                  // increment fine Y
@@ -358,22 +369,19 @@ void ppu_tick(struct nes *nes)
         }
     }
 
-    if (nes->ppu.scanline == 261)
+    if (nes->ppu.scanline == PRERENDER_SCANLINE && nes->ppu.cycles == 304 && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
     {
-        if (nes->ppu.cycles == 304 && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
-        {
-            nes->ppu.scroll.v = (nes->ppu.scroll.v & ~0x7BE0) | (nes->ppu.scroll.t & 0x7BE0);
-        }
+        nes->ppu.scroll.v = (nes->ppu.scroll.v & ~0x7BE0) | (nes->ppu.scroll.t & 0x7BE0);
     }
 
     nes->ppu.cycles++;
 
-    if (nes->ppu.cycles >= 341)
+    if (nes->ppu.cycles == 341)
     {
         nes->ppu.cycles = 0;
         nes->ppu.scanline++;
         
-        if (nes->ppu.scanline == 262)
+        if (nes->ppu.scanline > PRERENDER_SCANLINE)
         {
             nes->ppu.registers.PPUSTATUS &= ~PPUSTATUS_0_HIT;
             nes->ppu.registers.PPUSTATUS &= ~PPUSTATUS_VBLANK;
@@ -381,7 +389,7 @@ void ppu_tick(struct nes *nes)
             return;
         }
 
-        if (nes->ppu.scanline == 241)
+        if (nes->ppu.scanline == VBLANK_SCANLINE)
         {
             SDL_UpdateTexture(nes->ppu.texture, NULL, nes->ppu.framebuffer, 256 * sizeof(uint32_t));
             SDL_RenderCopy(nes->ppu.renderer, nes->ppu.texture, NULL, NULL);
@@ -389,7 +397,7 @@ void ppu_tick(struct nes *nes)
 
             nes->ppu.registers.PPUSTATUS |= PPUSTATUS_VBLANK;
 
-            if (nes->ppu.registers.PPUCTRL & PPUCONTROL_NMI)
+            if (nes->ppu.registers.PPUCTRL & PPUCTRL_NMI)
             {
                 cpu_interrupt(nes, NMI_VECTOR);
             }
