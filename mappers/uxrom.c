@@ -8,7 +8,7 @@ u8 uxrom_read(struct nes *nes, u16 addr)
 
 void uxrom_write(struct nes *nes, u16 addr, u8 value)
 {
-    nes->mapper.prg_rom_bank[0] = &nes->cart.prg_rom[((value & 0x7)) * 0x4000];
+    nes->mapper.prg_rom_bank[0] = &nes->cart.prg_rom[value * 0x4000];
 }
 
 void uxrom_init(struct nes *nes)
