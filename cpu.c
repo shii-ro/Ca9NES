@@ -232,7 +232,7 @@ static inline u16 pull16(struct nes *nes)
         op_value = READ8(op_addr);                       \
         CHANGE_FLAG(STATUS_ZERO, !(op_value & A));       \
         CHANGE_FLAG(STATUS_NEGATIVE, (op_value & 0x80)); \
-        CHANGE_FLAG(STATUS_OVERFLOW, (op_value & 0x64)); \
+        CHANGE_FLAG(STATUS_OVERFLOW, (op_value & 0x40)); \
     } while (0);
 #define LSR()                                        \
     do                                               \
