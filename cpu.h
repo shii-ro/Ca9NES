@@ -8,7 +8,8 @@
 void cpu_init(struct nes *nes);
 void cpu_reset(struct nes *nes);
 u8 cpu_execute(struct nes *nes);
-void cpu_interrupt(struct nes *nes, u16 vector);
+void cpu_interrupt(struct nes *nes, u16 vector, u8 request);
+void cpu_process_interrupts(struct nes *nes);
 #endif
 
 

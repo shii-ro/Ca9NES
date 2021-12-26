@@ -16,6 +16,8 @@ struct cpu
         u8 sp;
         u16 pc;
     } registers;
+    bool intr_pending[0x3];
+
     u8 cycles;
     bool uoc;
 };
@@ -98,13 +100,13 @@ struct ppu
     u16 bg_index;
     u8 data_buf;
     u16 cycles;
-    u16 scanline;
+    int scanline;
     // u8 *chr_rom;
 
 
     // ugly as fuck, lets see if it works
     // define entire pattern acessing as 8 pointers
-    struct chr_banks *(pattern_banks[8]);
+    struct chr_banks *pattern_banks[8];
 
     u8 vram[0x800];
 
@@ -228,7 +230,7 @@ struct nes
 {
     u8 ram[0x800];
     u8 io[0x18];
-
+    char *romname;
     struct ppu ppu;
     struct cpu cpu;
     struct cart cart;
@@ -242,6 +244,13 @@ struct nes
         u8 (*mapper_read)(struct nes *nes, u16 addr);
         void (*mapper_write)(struct nes *nes, u16 addr, u8 value);
         u8 *prg_rom_bank[8];
+        struct
+        {
+            u8 latch;
+            bool reload;
+            bool enable;
+            u8 counter;
+        } irq;
     } mapper;
 
     long long int total_cycles;
@@ -254,6 +263,10 @@ void nes_write8(struct nes *nes, u16 addr, u8 value);
 void nes_write16(struct nes *nes, u16 addr, u16 value);
 void nes_run(struct nes *nes);
 void nes_init(struct nes *nes, char *romname);
+void nes_reset(struct nes *nes);
 void nes_close(struct nes *nes);
-
+void nes_read_prg_ram(struct nes *nes);
+void nes_write_prg_ram(struct nes *nes);
+void nes_load_save_state(struct nes *nes);
+void nes_write_save_state(struct nes *nes);
 #endif

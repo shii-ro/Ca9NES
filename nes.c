@@ -19,13 +19,25 @@ void nes_run(struct nes *nes)
         while (SDL_PollEvent(&e))
         {
             if (e.type == SDL_QUIT)
+            {
+                nes_write_prg_ram(nes);
                 quit = true;
+            }
 
             switch (e.type)
             {
             case SDL_KEYDOWN:
                 switch (e.key.keysym.sym)
                 {
+                case SDLK_F4:
+                    nes_load_save_state(nes);
+                    break;
+                case SDLK_F5:
+                    nes_write_save_state(nes);
+                    break;
+                case SDLK_F7:
+                    nes_reset(nes);
+                    break;
                 case SDLK_z:
                     nes->keystate |= JOY_BUTTON_A;
                     break;
@@ -92,6 +104,7 @@ void nes_run(struct nes *nes)
             ppu_tick(nes);
         nes->total_cycles += nes->cpu.cycles;
         nes->cpu.cycles = 0;
+        cpu_process_interrupts(nes);
     }
 }
 
@@ -146,6 +159,57 @@ void nes_write8(struct nes *nes, u16 addr, u8 value)
     };
 }
 
+void nes_read_prg_ram(struct nes *nes)
+{
+    char *save_name = malloc(sizeof(u8) * 30);
+    sprintf(save_name, "save_data/%s.sav", nes->romname);
+    FILE *sav_data = fopen(save_name, "rb+");
+    if (sav_data == NULL) //if file does not exist, create it
+    {
+        sav_data = fopen(save_name, "wb");
+    }
+    sav_data = fopen(save_name, "rb+");
+    fread(nes->mapper.prg_ram, sizeof(u8), 0x2000, sav_data);
+    fclose(sav_data);
+    free(save_name);
+}
+
+void nes_write_prg_ram(struct nes *nes)
+{
+    char *save_name = malloc(sizeof(u8) * 30);
+    sprintf(save_name, "save_data/%s.sav", nes->romname);
+    FILE *save = fopen(save_name, "wb");
+    fwrite(nes->mapper.prg_ram, sizeof(u8), 0x2000, save);
+    fclose(save);
+    free(save_name);
+}
+
+void nes_write_save_state(struct nes *nes)
+{
+    char *state_name = malloc(sizeof(u8) * 30);
+    sprintf(state_name, "save_data/%s.state", nes->romname);
+    FILE *state_data = fopen(state_name, "wb+");
+    fwrite(nes, sizeof(u8), sizeof(struct nes), state_data);
+    fclose(state_data);
+    free(state_name);
+}
+
+void nes_load_save_state(struct nes *nes)
+{
+    char *state_name = malloc(sizeof(u8) * 30);
+    sprintf(state_name, "save_data/%s.state", nes->romname);
+    FILE *state_data = fopen(state_name, "rb+");
+    if (state_data == NULL) //if file does not exist, create it
+    {
+        state_data = fopen(state_name, "wb");
+    }
+    state_data = fopen(state_name, "rb+");
+    fread(nes, sizeof(u8), sizeof(struct nes), state_data);
+    fclose(state_data);
+    free(state_name);
+    SDL_RenderClear(nes->ppu.renderer);
+}
+
 void nes_write16(struct nes *nes, u16 addr, u16 value)
 {
     nes_write8(nes, addr, value & 0xFF);
@@ -154,10 +218,17 @@ void nes_write16(struct nes *nes, u16 addr, u16 value)
 
 void nes_init(struct nes *nes, char *romname)
 {
+    nes->romname = romname;
     cpu_init(nes);
     cart_init(nes, romname);
     ppu_init(nes);
-    cpu_reset(nes);
+    nes_reset(nes);
+}
+
+void nes_reset(struct nes *nes)
+{
+    nes->cpu.intr_pending[0] = true;
+    cpu_interrupt(nes, RESET_VECTOR, nes->cpu.intr_pending[0]);
 }
 
 void nes_close(struct nes *nes)

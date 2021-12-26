@@ -9,6 +9,7 @@ u8 mapper00_read(struct nes *nes, u16 addr)
 
 void mapper00_init(struct nes *nes)
 {
+
     nes->mapper.prg_rom_bank[0] = nes->cart.prg_rom;
     nes->mapper.prg_rom_bank[1] = (nes->cart.header.prg_rom_size == 1) ? nes->cart.prg_rom : &nes->cart.prg_rom[0x4000];
 

@@ -361,12 +361,24 @@ static inline u16 pull16(struct nes *nes)
 #define DE(reg) do {reg--; CHANGE_NZ(reg);} while(0);
 #define T(a, b) do {b = a; CHANGE_NZ(b);} while(0);
 
-void cpu_interrupt(struct nes *nes, u16 vector)
+void cpu_interrupt(struct nes *nes, u16 vector, u8 request)
 {
     PUSH16(PC);
     PUSH8(S);
-    nes->cpu.registers.s |= STATUS_ID;
+    if (request)
+        nes->cpu.registers.s |= STATUS_ID;
+    nes->cpu.intr_pending[request] = false;
     nes->cpu.registers.pc = READ16(vector);
+}
+
+void cpu_process_interrupts(struct nes *nes)
+{
+    if (nes->cpu.intr_pending[2])
+        cpu_interrupt(nes, NMI_VECTOR, 2);
+    else if (nes->cpu.intr_pending[1])
+        cpu_interrupt(nes, IRQ_BRK_VECTOR, 1);
+    else if (nes->cpu.intr_pending[0])
+        cpu_interrupt(nes, RESET_VECTOR, 0);
 }
 
 u8 cpu_execute(struct nes *nes)
@@ -375,19 +387,21 @@ u8 cpu_execute(struct nes *nes)
     u8 op_value;
     u8 opcode;
 
-    // printf("%04X\t", PC);
+    if(nes->test_toogle)printf("%04X\t", PC);
     opcode = READ8(PC++);
-    // printf("%02X A: %02X X: %02X Y: %02X S: %02X SP: %02X CYC: %d \n",
-    //        opcode,
-    //        A,
-    //        X,
-    //        Y,
-    //        S,
-    //        SP,
-    //        nes->total_cycles);
+    if(nes->test_toogle)printf("%02X A: %02X X: %02X Y: %02X S: %02X SP: %02X CYC: %d \n",
+           opcode,
+           A,
+           X,
+           Y,
+           S,
+           SP,
+           nes->total_cycles);
+    // getchar();
     //printf("%02x %02x %02x %02x %02x %02x\n", nes->ram[SP], nes->ram[SP + 1], nes->ram[SP + 2], nes->ram[SP + 3],  nes->ram[SP+ 4],  nes->ram[SP + 5]);
     switch (opcode)
     {
+        case 0x00: ADRS_IMP(); nes->cpu.intr_pending[1] = true; PC++; return 7;
         case 0xEA: ADRS_IMP(); NOP(); return 2; // NOP IMP
         case 0x20: ADRS_ABS(); JSR(); return 6; // JSR ABSOLUTE
         case 0x6C: ADRS_IND(); PC = op_addr; return 5;// JMP INDIRECT
@@ -580,17 +594,13 @@ u8 cpu_execute(struct nes *nes)
     return 0;
 }
 
-void cpu_reset(struct nes *nes)
-{
-    cpu_interrupt(nes, RESET_VECTOR);
-}
-
 void cpu_init(struct nes *nes)
 {
     memset(&nes->cpu, 0, sizeof(struct cpu));
     nes->cpu.cycles = 0;
     nes->cpu.registers.pc = 0x0000;
     nes->cpu.registers.s = 0x34;
+    nes->cpu.intr_pending[0] = true;
     A = X = Y = 0;
     SP = 0xFD;
 }

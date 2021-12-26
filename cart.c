@@ -57,6 +57,7 @@ void cart_load_rom(struct nes *nes, FILE *rom)
     {
         printf("Uses PRG RAM\n");
         nes->mapper.prg_ram = malloc(sizeof(u8) * 0x2000);
+        nes_read_prg_ram(nes);
     }
 }
 

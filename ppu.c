@@ -16,7 +16,7 @@ enum
 } PPU_REGISTERS;
 
 #define VISIBLE_SCANLINE    240
-#define PRERENDER_SCANLINE  261
+#define PRERENDER_SCANLINE  -1
 #define VBLANK_SCANLINE     241
 
 static inline u8 *ppu_get_pattern_p(struct nes *nes, u16 addr)
@@ -80,7 +80,7 @@ void ppu_write(struct nes *nes, u16 addr, u8 value)
     {
     case PPUCTRL:
         if ((nes->ppu.registers.PPUSTATUS & PPUSTATUS_VBLANK) && (value & 0x80) && !(nes->ppu.registers.PPUCTRL & 0x80) && nes->ppu.scanline >= 241)
-            cpu_interrupt(nes, NMI_VECTOR);
+            ;
         nes->ppu.registers.PPUCTRL = value;
         nes->ppu.bg_index = (nes->ppu.registers.PPUCTRL & PPUCTRL_BG_TABLE) ? 0x1000 : 0x000;
         nes->ppu.scroll.t = (nes->ppu.scroll.t & ~VT_NAMETABLE_SEL) | (nes->ppu.registers.PPUCTRL & PPUCTRL_NAMETABLE) << 10;
@@ -226,7 +226,7 @@ void ppu_tick(struct nes *nes)
     static u8 sec_oam_index[8];
 
     //  Visible scanlines (0-239)
-    if ((nes->ppu.scanline < VISIBLE_SCANLINE || nes->ppu.scanline == PRERENDER_SCANLINE) && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
+    if (((nes->ppu.scanline >= 0 && nes->ppu.scanline < VISIBLE_SCANLINE) || nes->ppu.scanline == PRERENDER_SCANLINE) && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
     {
         if (nes->ppu.cycles < 256 || (nes->ppu.cycles > 319 && nes->ppu.cycles < 336))
         {
@@ -285,8 +285,29 @@ void ppu_tick(struct nes *nes)
             }
         }
 
-        if (nes->ppu.cycles == 256 && nes->ppu.scanline < VISIBLE_SCANLINE)
+        if (nes->ppu.cycles == 256 && nes->ppu.scanline < VISIBLE_SCANLINE && nes->ppu.scanline >=0)
         {
+            if (nes->ppu.registers.PPUMASK & (PPUMASK_SHOW_BG | PPUMASK_SHOW_SPRITES))
+            {
+                if ((nes->ppu.scroll.v & VT_FINE_Y) != VT_FINE_Y) // if fine Y < 7
+                    nes->ppu.scroll.v += 0x1000;                  // increment fine Y
+                else
+                {
+                    nes->ppu.scroll.v &= 0x8FFF;                    // fine Y = 0
+                    int y = (nes->ppu.scroll.v & VT_COARSE_Y) >> 5; // let y = coarse Y
+                    if (y == 29)
+                    {
+                        y = 0;                       // coarse Y = 0
+                        nes->ppu.scroll.v ^= 0x0800; // switch vertical nametable
+                    }
+                    else if (y == 31)
+                        y = 0; // coarse Y = 0, nametable not switched
+                    else
+                        y += 1;                                                        // increment coarse Y
+                    nes->ppu.scroll.v = (nes->ppu.scroll.v & ~VT_COARSE_Y) | (y << 5); // put coarse Y back into v
+                }
+            }
+
             curr_sprite = &nes->ppu.oam.sprite[0];
             sprite_counter = 0;
             oam_counter = 0;
@@ -326,7 +347,7 @@ void ppu_tick(struct nes *nes)
             }
         }
 
-        if (nes->ppu.cycles < 256 && nes->ppu.scanline < VISIBLE_SCANLINE)
+        if (nes->ppu.cycles >=8 && nes->ppu.cycles < 256 && nes->ppu.scanline < VISIBLE_SCANLINE - 8 && nes->ppu.scanline >=0)
         {
             color = (bg_pixel) ? pallete[nes->ppu.palettes.background[pallete_index].color[bg_pixel]] : pallete[nes->ppu.pallete_ram[0]];
             if (nes->ppu.registers.PPUMASK & PPUMASK_SHOW_SPRITES && nes->ppu.scanline != 0)
@@ -346,53 +367,50 @@ void ppu_tick(struct nes *nes)
             }
             nes->ppu.framebuffer[(nes->ppu.scanline * 256) + nes->ppu.cycles] = color;
         }
-
+        
         // Reset Coarse X based on the T
-        if (nes->ppu.cycles == 257 && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
+        if (nes->ppu.cycles == 257)
         {
             nes->ppu.scroll.v = (nes->ppu.scroll.v & ~0b10000011111) | (nes->ppu.scroll.t & 0b10000011111);
         }
-
-        // Increase V every 256 cycles
-        if (nes->ppu.cycles == 256 && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
-        {
-            if ((nes->ppu.scroll.v & VT_FINE_Y) != VT_FINE_Y) // if fine Y < 7
-                nes->ppu.scroll.v += 0x1000;                  // increment fine Y
-            else
-            {
-                nes->ppu.scroll.v &= 0x8FFF;                    // fine Y = 0
-                int y = (nes->ppu.scroll.v & VT_COARSE_Y) >> 5; // let y = coarse Y
-                if (y == 29)
-                {
-                    y = 0;                       // coarse Y = 0
-                    nes->ppu.scroll.v ^= 0x0800; // switch vertical nametable
-                }
-                else if (y == 31)
-                    y = 0; // coarse Y = 0, nametable not switched
-                else
-                    y += 1;                                                        // increment coarse Y
-                nes->ppu.scroll.v = (nes->ppu.scroll.v & ~VT_COARSE_Y) | (y << 5); // put coarse Y back into v
-            }
-        }
     }
 
-    if (nes->ppu.scanline == PRERENDER_SCANLINE && nes->ppu.cycles == 304 && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
+    if (nes->ppu.scanline == PRERENDER_SCANLINE && nes->ppu.cycles == 304 && nes->ppu.registers.PPUMASK & (PPUMASK_SHOW_BG | PPUMASK_SHOW_SPRITES))
     {
         nes->ppu.scroll.v = (nes->ppu.scroll.v & ~0x7BE0) | (nes->ppu.scroll.t & 0x7BE0);
     }
 
-    nes->ppu.cycles++;
+    if (nes->ppu.cycles == 260 && nes->ppu.scanline < VISIBLE_SCANLINE && nes->ppu.scanline >= 0)
+    {
+        if (nes->ppu.registers.PPUMASK & (PPUMASK_SHOW_BG | PPUMASK_SHOW_SPRITES))
+        {
+            // When the IRQ is clocked (filtered A12 0→1), the counter value is checked - if zero or the reload flag is true,
+            // it's reloaded with the IRQ latched value at $C000; otherwise, it decrements.
+            if (nes->mapper.irq.counter == 0 || nes->mapper.irq.reload)
+            {
+                nes->mapper.irq.reload = false;
+                nes->mapper.irq.counter = nes->mapper.irq.latch;
+            }
+            else
+                nes->mapper.irq.counter--;
 
-    if (nes->ppu.cycles == 341)
+            if (nes->mapper.irq.counter == 0 && nes->mapper.irq.enable)
+            {
+                nes->cpu.intr_pending[1] = true;
+            }
+        }
+    }
+
+    if (++nes->ppu.cycles >= 341)
     {
         nes->ppu.cycles = 0;
         nes->ppu.scanline++;
-        
-        if (nes->ppu.scanline > PRERENDER_SCANLINE)
+
+        if (nes->ppu.scanline == 261)
         {
             nes->ppu.registers.PPUSTATUS &= ~PPUSTATUS_0_HIT;
             nes->ppu.registers.PPUSTATUS &= ~PPUSTATUS_VBLANK;
-            nes->ppu.scanline = 0;
+            nes->ppu.scanline = PRERENDER_SCANLINE;
             return;
         }
 
@@ -401,12 +419,11 @@ void ppu_tick(struct nes *nes)
             SDL_UpdateTexture(nes->ppu.texture, NULL, nes->ppu.framebuffer, 256 * sizeof(uint32_t));
             SDL_RenderCopy(nes->ppu.renderer, nes->ppu.texture, NULL, NULL);
             SDL_RenderPresent(nes->ppu.renderer);
-
             nes->ppu.registers.PPUSTATUS |= PPUSTATUS_VBLANK;
 
             if (nes->ppu.registers.PPUCTRL & PPUCTRL_NMI)
             {
-                cpu_interrupt(nes, NMI_VECTOR);
+                nes->cpu.intr_pending[2] = true;
             }
         }
     }
