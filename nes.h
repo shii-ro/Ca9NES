@@ -256,6 +256,7 @@ struct nes
     long long int total_cycles;
     u8 keystate;
     bool test_toogle;
+    bool quit;
 };
 
 u8 nes_read8(struct nes *nes, u16 addr);

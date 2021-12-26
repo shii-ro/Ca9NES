@@ -1,5 +1,6 @@
 #include "ppu.h"
 #include "cpu.h"
+#include "io.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -68,7 +69,7 @@ void ppu_init(struct nes *nes)
     nes->ppu.cycles = 0;
 
     nes->ppu.window = SDL_CreateWindow("desuNES", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 256 * 2, 240 * 2, SDL_WINDOW_SHOWN);
-    nes->ppu.renderer = SDL_CreateRenderer(nes->ppu.window, -1, SDL_RENDERER_ACCELERATED);
+    nes->ppu.renderer = SDL_CreateRenderer(nes->ppu.window, -1, SDL_RENDERER_ACCELERATED| SDL_RENDERER_PRESENTVSYNC);
     nes->ppu.texture = SDL_CreateTexture(nes->ppu.renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STATIC, 256, 240);
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
@@ -347,7 +348,7 @@ void ppu_tick(struct nes *nes)
             }
         }
 
-        if (nes->ppu.cycles >=8 && nes->ppu.cycles < 256 && nes->ppu.scanline < VISIBLE_SCANLINE - 8 && nes->ppu.scanline >=0)
+        if (nes->ppu.cycles < 256 && nes->ppu.scanline < VISIBLE_SCANLINE  && nes->ppu.scanline >=0)
         {
             color = (bg_pixel) ? pallete[nes->ppu.palettes.background[pallete_index].color[bg_pixel]] : pallete[nes->ppu.pallete_ram[0]];
             if (nes->ppu.registers.PPUMASK & PPUMASK_SHOW_SPRITES && nes->ppu.scanline != 0)
@@ -419,6 +420,92 @@ void ppu_tick(struct nes *nes)
             SDL_UpdateTexture(nes->ppu.texture, NULL, nes->ppu.framebuffer, 256 * sizeof(uint32_t));
             SDL_RenderCopy(nes->ppu.renderer, nes->ppu.texture, NULL, NULL);
             SDL_RenderPresent(nes->ppu.renderer);
+
+            SDL_Event e;
+
+            while (SDL_PollEvent(&e))
+            {
+                if (e.type == SDL_QUIT)
+                {
+                    nes_write_prg_ram(nes);
+                    nes->quit = true;
+                }
+                switch (e.type)
+                {
+                case SDL_KEYDOWN:
+                    switch (e.key.keysym.sym)
+                    {
+                    case SDLK_F4:
+                        nes_load_save_state(nes);
+                        break;
+                    case SDLK_F5:
+                        nes_write_save_state(nes);
+                        break;
+                    case SDLK_F7:
+                        nes_reset(nes);
+                        break;
+                    case SDLK_z:
+                        nes->keystate |= JOY_BUTTON_A;
+                        break;
+                    case SDLK_x:
+                        nes->keystate |= JOY_BUTTON_B;
+                        break;
+                    case SDLK_c:
+                        nes->keystate |= JOY_BUTTON_START;
+                        break;
+                    case SDLK_v:
+                        nes->keystate |= JOY_BUTTON_SEL;
+                        break;
+                    case SDLK_UP:
+                        nes->keystate |= JOY_BUTTON_UP;
+                        break;
+                    case SDLK_LEFT:
+                        nes->keystate |= JOY_BUTTON_LEFT;
+                        break;
+                    case SDLK_DOWN:
+                        nes->keystate |= JOY_BUTTON_DOWN;
+                        break;
+                    case SDLK_RIGHT:
+                        nes->keystate |= JOY_BUTTON_RIGHT;
+                        break;
+                    default:
+                        break;
+                    }
+                    break;
+
+                case SDL_KEYUP:
+                    switch (e.key.keysym.sym)
+                    {
+                    case SDLK_z:
+                        nes->keystate &= ~JOY_BUTTON_A;
+                        break;
+                    case SDLK_x:
+                        nes->keystate &= ~JOY_BUTTON_B;
+                        break;
+                    case SDLK_c:
+                        nes->keystate &= ~JOY_BUTTON_START;
+                        break;
+                    case SDLK_v:
+                        nes->keystate &= ~JOY_BUTTON_SEL;
+                        break;
+                    case SDLK_UP:
+                        nes->keystate &= ~JOY_BUTTON_UP;
+                        break;
+                    case SDLK_LEFT:
+                        nes->keystate &= ~JOY_BUTTON_LEFT;
+                        break;
+                    case SDLK_DOWN:
+                        nes->keystate &= ~JOY_BUTTON_DOWN;
+                        break;
+                    case SDLK_RIGHT:
+                        nes->keystate &= ~JOY_BUTTON_RIGHT;
+                        break;
+                    default:
+                        break;
+                    }
+                    break;
+                }
+            }
             nes->ppu.registers.PPUSTATUS |= PPUSTATUS_VBLANK;
 
             if (nes->ppu.registers.PPUCTRL & PPUCTRL_NMI)

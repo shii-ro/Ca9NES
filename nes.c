@@ -11,93 +11,8 @@
 void nes_run(struct nes *nes)
 {
     unsigned ppu_cycles;
-    SDL_Event e;
-
-    bool quit;
-    while (!nes->cpu.uoc && !quit)
+    while (!nes->cpu.uoc && !nes->quit)
     {
-        while (SDL_PollEvent(&e))
-        {
-            if (e.type == SDL_QUIT)
-            {
-                nes_write_prg_ram(nes);
-                quit = true;
-            }
-
-            switch (e.type)
-            {
-            case SDL_KEYDOWN:
-                switch (e.key.keysym.sym)
-                {
-                case SDLK_F4:
-                    nes_load_save_state(nes);
-                    break;
-                case SDLK_F5:
-                    nes_write_save_state(nes);
-                    break;
-                case SDLK_F7:
-                    nes_reset(nes);
-                    break;
-                case SDLK_z:
-                    nes->keystate |= JOY_BUTTON_A;
-                    break;
-                case SDLK_x:
-                    nes->keystate |= JOY_BUTTON_B;
-                    break;
-                case SDLK_c:
-                    nes->keystate |= JOY_BUTTON_START;
-                    break;
-                case SDLK_v:
-                    nes->keystate |= JOY_BUTTON_SEL;
-                    break;
-                case SDLK_UP:
-                    nes->keystate |= JOY_BUTTON_UP;
-                    break;
-                case SDLK_LEFT:
-                    nes->keystate |= JOY_BUTTON_LEFT;
-                    break;
-                case SDLK_DOWN:
-                    nes->keystate |= JOY_BUTTON_DOWN;
-                    break;
-                case SDLK_RIGHT:
-                    nes->keystate |= JOY_BUTTON_RIGHT;
-                    break;
-                default:
-                    break;
-                }break;
-
-            case SDL_KEYUP:
-                switch (e.key.keysym.sym)
-                {
-                case SDLK_z:
-                    nes->keystate &= ~JOY_BUTTON_A;
-                    break;
-                case SDLK_x:
-                    nes->keystate &= ~JOY_BUTTON_B;
-                    break;
-                case SDLK_c:
-                    nes->keystate &= ~JOY_BUTTON_START;
-                    break;
-                case SDLK_v:
-                    nes->keystate &= ~JOY_BUTTON_SEL;
-                    break;
-                case SDLK_UP:
-                    nes->keystate &= ~JOY_BUTTON_UP;
-                    break;
-                case SDLK_LEFT:
-                    nes->keystate &= ~JOY_BUTTON_LEFT;
-                    break;
-                case SDLK_DOWN:
-                    nes->keystate &= ~JOY_BUTTON_DOWN;
-                    break;
-                case SDLK_RIGHT:
-                    nes->keystate &= ~JOY_BUTTON_RIGHT;
-                    break;
-                default:
-                    break;
-                }break;
-            }
-        }
         nes->cpu.cycles += cpu_execute(nes);
         ppu_cycles = nes->cpu.cycles * 3;
         for (unsigned i = 0; i < ppu_cycles; i++)
@@ -201,13 +116,14 @@ void nes_load_save_state(struct nes *nes)
     FILE *state_data = fopen(state_name, "rb+");
     if (state_data == NULL) //if file does not exist, create it
     {
-        state_data = fopen(state_name, "wb");
+        state_data = fopen(state_name, "wb+");
     }
     state_data = fopen(state_name, "rb+");
     fread(nes, sizeof(u8), sizeof(struct nes), state_data);
     fclose(state_data);
     free(state_name);
     SDL_RenderClear(nes->ppu.renderer);
+    nes->test_toogle = true;
 }
 
 void nes_write16(struct nes *nes, u16 addr, u16 value)
