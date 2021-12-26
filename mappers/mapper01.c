@@ -78,11 +78,16 @@ void mapper01_write(struct nes *nes, u16 addr, u8 value)
                 break;
             case 5: //$A000
                 chr_bank0_register = shift_register;
-                // printf("CHR BANK 0: %d\n", chr_bank0_register);
+                u8 chr_bank_size = (control_register & CR_CHR_BNK_MODE) ? 4 : 8;
+                u8 bank0 = (nes->cart.chr_rom_size == 0 || nes->cart.chr_rom_size == 1) ? (chr_bank0_register & 0x1) : chr_bank0_register * chr_bank_size;
+                for (int i = 0; i < chr_bank_size; i++)
+                    nes->ppu.pattern_banks[i] = &nes->cart.chr_banks[bank0 + i];
                 break;
             case 6: //$C000
                 chr_bank1_register = shift_register;
-                // printf("CHR BANK 1: %d\n", chr_bank1_register);
+                if (!(control_register & CR_CHR_BNK_MODE)) break;
+                for (int i = 0; i < 4; i++)
+                    nes->ppu.pattern_banks[i + 4] = &nes->cart.chr_banks[chr_bank1_register * 4 + i];
                 break;
             case 7: //$E000
                 prg_bank_register = shift_register;
@@ -105,12 +110,11 @@ void mapper01_write(struct nes *nes, u16 addr, u8 value)
                     nes->mapper.prg_rom_bank[0] = &nes->cart.prg_rom[(prg_bank_register & 0b1111) * 0x4000];
                     break;
                 }
-                break; 
-            }
+                break;
+                }
 
             shift_register = 0b10000;
             shift_register_counter = 0;
-            // getchar();
         }
     }
     return;
