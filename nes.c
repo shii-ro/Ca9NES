@@ -104,7 +104,7 @@ u8 nes_read8(struct nes *nes, u16 addr)
         case 2:                             // $4000-$5FFF
             if(addr == 0x4016) return io_joy_read(nes, 0x4016);
             else if (addr == 0x4017) return io_joy_read(nes, 0x4017);
-            printf("NOT IMPLEMENTED IO/APU READ: %04x\n", addr);
+            // printf("NOT IMPLEMENTED IO/APU READ: %04x\n", addr);
             return 0;
         case 3: return nes->mapper.mapper_read(nes, addr); // $6000-$7FFF
         default: return nes->mapper.mapper_read(nes, addr);

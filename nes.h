@@ -57,6 +57,11 @@ struct sprite
     u8 x_pos;
 };
 
+struct chr_banks
+{
+    u8 bytes[0x400];
+};
+
 struct ppu
 {
     struct
@@ -90,10 +95,17 @@ struct ppu
         u8 OAMDMA;
     } registers;
 
+    u16 bg_index;
     u8 data_buf;
     u16 cycles;
     u16 scanline;
-    u8 *chr_rom;
+    // u8 *chr_rom;
+
+
+    // ugly as fuck, lets see if it works
+    // define entire pattern acessing as 8 pointers
+    struct chr_banks *(pattern_banks[8]);
+
     u8 vram[0x800];
 
     union
@@ -131,7 +143,7 @@ struct ppu
         struct sprite sprite[64];
     } oam;
 
-    struct tile *bg_tile;
+
     // A nametable is a 1024 byte area of memory used by the PPU to lay out backgrounds.
     // Each byte in the nametable controls one 8x8 pixel character cell, and each nametable has 30 rows of 32 tiles each,
     // for 960 ($3C0) bytes; the rest is used by each nametable's attribute table.
@@ -203,13 +215,9 @@ struct cart
 {
     struct header header;
     u8 *prg_rom;
+    struct chr_banks *chr_banks;
 
-    struct prg_rom_banks
-    {
-        u8 bank[0x4000];
-    } * prg_rom_banks;
-
-    u8 *chr_rom;
+    u8 *chr_rom; // CHR RAM is always 8kb i presume
     int prg_rom_size;
     int chr_rom_size;
     u8 mapper_index;
