@@ -8,6 +8,7 @@
 #include "mappers/mapper01.c"
 #include "mappers/uxrom.c"
 
+
 void cart_load_header(struct nes *nes, FILE *rom )
 {
     fread(&nes->cart.header, sizeof(u8), sizeof(struct header), rom);
@@ -38,7 +39,7 @@ void cart_load_rom(struct nes *nes, FILE *rom)
     nes->cart.prg_rom = malloc(nes->cart.prg_rom_size);
 
     fread(nes->cart.prg_rom, sizeof(u8), nes->cart.prg_rom_size, rom);
-    nes->cart.prg_rom_banks = (struct prg_rom_banks *)&nes->cart.prg_rom;
+
     if (nes->mapper.uses_chr_ram)
     {
         printf("USES CHR RAM\n");
@@ -49,7 +50,8 @@ void cart_load_rom(struct nes *nes, FILE *rom)
         nes->cart.chr_rom = malloc(nes->cart.chr_rom_size);
         fread(nes->cart.chr_rom, sizeof(u8), nes->cart.chr_rom_size, rom);
     }
-
+    
+    nes->cart.chr_banks = (struct chr_banks *)&nes->cart.chr_rom[0];
     if (nes->mapper.uses_prg_ram || true)
     {
         printf("Uses PRG RAM\n");
@@ -84,5 +86,6 @@ void mapper_init(struct nes *nes)
     case 0x02: uxrom_init(nes); break;
     default:
         printf("Mapper not implemented: %02x\n", nes->cart.mapper_index);
+        break;
     }
 }

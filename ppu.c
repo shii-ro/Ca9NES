@@ -19,6 +19,12 @@ enum
 #define PRERENDER_SCANLINE  261
 #define VBLANK_SCANLINE     241
 
+static inline u8 *ppu_get_pattern_p(struct nes *nes, u16 addr)
+{
+    if((addr >> 10) >=8) printf("SHIT HAPPENED\n");
+    return &nes->ppu.pattern_banks[addr >> 10]->bytes[addr & 0x3FF];
+}
+
 // not doing this shit again
 const uint32_t pallete[64] =
     {
@@ -37,8 +43,12 @@ const u8 attr_table_lut[] =
 void ppu_init(struct nes *nes)
 {
     memset(&nes->ppu, 0, sizeof(nes->ppu) * sizeof(u8));
-    nes->ppu.chr_rom = nes->cart.chr_rom;
     nes->ppu.scanline = 240;
+
+    for (int i = 0; i < 8; i++)
+    {
+        nes->ppu.pattern_banks[i] = &nes->cart.chr_banks[i];
+    }
 
     if (nes->cart.header.flags_6 & 0x01)
     {
@@ -73,8 +83,8 @@ void ppu_write(struct nes *nes, u16 addr, u8 value)
         if ((nes->ppu.registers.PPUSTATUS & PPUSTATUS_VBLANK) && (value & 0x80) && !(nes->ppu.registers.PPUCTRL & 0x80) && nes->ppu.scanline >= 241)
             cpu_interrupt(nes, NMI_VECTOR);
         nes->ppu.registers.PPUCTRL = value;
+        nes->ppu.bg_index = (nes->ppu.registers.PPUCTRL & PPUCTRL_BG_TABLE) ? 0x1000 : 0x000;
         nes->ppu.scroll.t = (nes->ppu.scroll.t & ~VT_NAMETABLE_SEL) | (nes->ppu.registers.PPUCTRL & PPUCTRL_NAMETABLE) << 10;
-        nes->ppu.bg_tile = (struct tile *) &nes->ppu.chr_rom[(0x1000 * ((nes->ppu.registers.PPUCTRL & PPUCTRL_BG_TABLE) >> 4))];
         break;
     case PPUMASK:
         nes->ppu.registers.PPUMASK = value;
@@ -116,7 +126,7 @@ void ppu_write(struct nes *nes, u16 addr, u8 value)
     case PPUDATA:
         if (nes->ppu.scroll.v < 0x2000)
         {
-            nes->ppu.chr_rom[nes->ppu.scroll.v] = value;
+            *ppu_get_pattern_p(nes, nes->ppu.scroll.v) = value;
         }
         else if (nes->ppu.scroll.v < 0x3F00)
         {
@@ -160,9 +170,7 @@ u8 ppu_read(struct nes *nes, u16 addr)
         {
             ret_val = nes->ppu.data_buf;
             if (nes->ppu.scroll.v < 0x2000)
-            {
-                nes->ppu.data_buf = nes->ppu.chr_rom[nes->ppu.scroll.v];
-            }
+                nes->ppu.data_buf =  *ppu_get_pattern_p(nes, nes->ppu.scroll.v);
             else
                 nes->ppu.data_buf = nes->ppu.nametable[(nes->ppu.scroll.v & 0xC00) >> 10]->bytes[nes->ppu.scroll.v & 0x3FF];
         }
@@ -242,14 +250,14 @@ void ppu_tick(struct nes *nes)
                 case 3: // fetch attr byte
                     attr_table_byte = nes->ppu.nametable[(nes->ppu.scroll.v >> 10) & 0x3]->attribute_table[attr_table_addr];
                     break;
-                case 4: // fetch attr pattern
+                case 4: // fetch attr pattern_banks
                     attr_pattern = (attr_table_byte >> attr_table_lut[(((nes->ppu.scroll.v & VT_COARSE_Y) >> 5) & 0x3) * 4 + ((nes->ppu.scroll.v & VT_COARSE_X) & 0x3)] & 0b11) * 0x5555;
                     break;
                 case 5: // fetch lower 8bits of attr table
-                    bg_latch_low = nes->ppu.bg_tile[nametable_byte].low[((nes->ppu.scroll.v & VT_FINE_Y) >> 12)];
+                    bg_latch_hi = *ppu_get_pattern_p(nes, nes->ppu.bg_index + (nametable_byte * 0x10) + ((nes->ppu.scroll.v & VT_FINE_Y) >> 12));
                     break;
                 case 7: // fetch higher 8bits of attr table
-                    bg_latch_hi = nes->ppu.bg_tile[nametable_byte].hi[((nes->ppu.scroll.v & VT_FINE_Y) >> 12)];
+                    bg_latch_low = *ppu_get_pattern_p(nes, nes->ppu.bg_index + (nametable_byte * 0x10) + ((nes->ppu.scroll.v & VT_FINE_Y) >> 12) + 8);
 
                     bg_pattern = bg_latch_hi | bg_latch_low << 8;
 
@@ -298,22 +306,22 @@ void ppu_tick(struct nes *nes)
                     if (nes->ppu.scanline > (curr_sprite->y_pos + 7))
                         attr_table_addr += 0x10;
 
-                    u16 sprite_pattern = nes->ppu.chr_rom[attr_table_addr] | nes->ppu.chr_rom[attr_table_addr + 8] << 8;
+                    u16 sprite_pattern_banks = *ppu_get_pattern_p(nes, attr_table_addr) |  *ppu_get_pattern_p(nes, attr_table_addr + 8) << 8;
 
-                    sprite_pattern = (sprite_pattern & 0xF00F) | ((sprite_pattern & 0x0F00) >> 4) | ((sprite_pattern & 0x00F0) << 4);
-                    sprite_pattern = (sprite_pattern & 0xC3C3) | ((sprite_pattern & 0x3030) >> 2) | ((sprite_pattern & 0x0C0C) << 2);
-                    sprite_pattern = (sprite_pattern & 0x9999) | ((sprite_pattern & 0x4444) >> 1) | ((sprite_pattern & 0x2222) << 1);
+                    sprite_pattern_banks = (sprite_pattern_banks & 0xF00F) | ((sprite_pattern_banks & 0x0F00) >> 4) | ((sprite_pattern_banks & 0x00F0) << 4);
+                    sprite_pattern_banks = (sprite_pattern_banks & 0xC3C3) | ((sprite_pattern_banks & 0x3030) >> 2) | ((sprite_pattern_banks & 0x0C0C) << 2);
+                    sprite_pattern_banks = (sprite_pattern_banks & 0x9999) | ((sprite_pattern_banks & 0x4444) >> 1) | ((sprite_pattern_banks & 0x2222) << 1);
 
                     if (!(curr_sprite->attributes & ATTR_FLIP_H))
                     {
-                        sprite_pattern = ((sprite_pattern >> 2) & 0x3333) | ((sprite_pattern & 0x3333) << 2);
-                        sprite_pattern = ((sprite_pattern >> 4) & 0x0F0F) | ((sprite_pattern & 0x0F0F) << 4);
-                        sprite_pattern = ((sprite_pattern >> 8) & 0x00FF) | ((sprite_pattern & 0x00FF) << 8);
+                        sprite_pattern_banks = ((sprite_pattern_banks >> 2) & 0x3333) | ((sprite_pattern_banks & 0x3333) << 2);
+                        sprite_pattern_banks = ((sprite_pattern_banks >> 4) & 0x0F0F) | ((sprite_pattern_banks & 0x0F0F) << 4);
+                        sprite_pattern_banks = ((sprite_pattern_banks >> 8) & 0x00FF) | ((sprite_pattern_banks & 0x00FF) << 8);
                     }
 
                     sec_oam[oam_counter] = *curr_sprite;
                     sec_oam_index[oam_counter++] = sprite;
-                    sprites[sprite_counter++] = sprite_pattern;
+                    sprites[sprite_counter++] = sprite_pattern_banks;
                 }
                 curr_sprite++;
             }
