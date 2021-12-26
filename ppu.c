@@ -21,7 +21,6 @@ enum
 
 static inline u8 *ppu_get_pattern_p(struct nes *nes, u16 addr)
 {
-    if((addr >> 10) >=8) printf("SHIT HAPPENED\n");
     return &nes->ppu.pattern_banks[addr >> 10]->bytes[addr & 0x3FF];
 }
 

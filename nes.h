@@ -239,13 +239,14 @@ struct nes
         bool uses_chr_ram;
         u8 *prg_ram;
         u8 *chr_ram;
-        u8 *prg_rom_bank[2];
         u8 (*mapper_read)(struct nes *nes, u16 addr);
         void (*mapper_write)(struct nes *nes, u16 addr, u8 value);
-    }mapper;
+        u8 *prg_rom_bank[8];
+    } mapper;
 
     long long int total_cycles;
     u8 keystate;
+    bool test_toogle;
 };
 
 u8 nes_read8(struct nes *nes, u16 addr);
