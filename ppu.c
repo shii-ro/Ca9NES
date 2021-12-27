@@ -331,11 +331,11 @@ void ppu_tick(struct nes *nes)
                 {
                     u8 sprite_row = (nes->ppu.scanline - curr_sprite->y_pos);
                     if ((curr_sprite->attributes & ATTR_FLIP_V))
-                        sprite_row = ((nes->ppu.registers.PPUCTRL & PPUCTRL_SPRITE_SIZE) ? 15 : 7) - (sprite_row & 0x7);
+                        sprite_row ^= ((nes->ppu.registers.PPUCTRL & PPUCTRL_SPRITE_SIZE) ? 15 : 7);
                     attr_table_addr = 0x1000 * ((nes->ppu.registers.PPUCTRL & PPUCTRL_SPRITE_SIZE) ? (curr_sprite->tile_index & 0x1) : ((nes->ppu.registers.PPUCTRL & PPUCTRL_SPRITE_TABLE) >> 3));
                     attr_table_addr += 0x10 * ((nes->ppu.registers.PPUCTRL & PPUCTRL_SPRITE_SIZE) ? (curr_sprite->tile_index & 0xFE) : (curr_sprite->tile_index & 0xFF));
                     attr_table_addr += sprite_row & 0x7;
-                    if (nes->ppu.scanline > (curr_sprite->y_pos + 7))
+                    if (sprite_row > 7)
                         attr_table_addr += 0x10;
 
                     u16 sprite_pattern = *ppu_get_pattern_p(nes, attr_table_addr) | *ppu_get_pattern_p(nes, attr_table_addr + 8) << 8;
@@ -360,25 +360,21 @@ void ppu_tick(struct nes *nes)
 
         if (nes->ppu.cycles < 256 && nes->ppu.scanline < VISIBLE_SCANLINE && nes->ppu.scanline >= 0)
         {
-            if (nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG)
+            bool screen_edge = (nes->ppu.cycles < 8);
+            if (nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG && (!screen_edge || nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG_LEFT))
                 color = (bg_pixel) ? pallete[nes->ppu.palettes.background[pallete_index].color[bg_pixel]] : pallete[nes->ppu.pallete_ram[0]];
-            else
-                color = pallete[nes->ppu.palettes.background[0].color[0]];
+            else color = 0x000000FF;
 
-            if (nes->ppu.registers.PPUMASK & PPUMASK_SHOW_BG && nes->ppu.scanline && nes->ppu.registers.PPUMASK & PPUMASK_SHOW_SPRITES)
+            if (nes->ppu.registers.PPUMASK & PPUMASK_SHOW_SPRITES && (!screen_edge || nes->ppu.registers.PPUMASK & PPUMASK_SHOW_SPRITES_LEFT))
             {
                 for (int i = 0; i < oam_counter; ++i)
                 {
                     u8 x = (nes->ppu.cycles - sec_oam[i].x_pos);
-                    if (x >= 8)
-                        continue;
+                    if (x >= 8) continue;
                     u8 sprite_pixel = ((sprites[i] >> (x * 2)) & 0x3);
-                    if (!sprite_pixel)
-                        continue;
+                    if (!sprite_pixel) continue;
                     if (sec_oam_index[0] == 0 && nes->ppu.cycles < 255 && bg_pixel)
-                    {
                         nes->ppu.registers.PPUSTATUS |= PPUSTATUS_0_HIT;
-                    }
                     if (!(sec_oam[i].attributes & ATTR_PRIO) || !bg_pixel)
                         color = pallete[nes->ppu.palettes.sprite[sec_oam[i].attributes & ATTR_PALETTE].color[sprite_pixel]];
                     break;
