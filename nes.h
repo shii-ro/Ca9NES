@@ -17,7 +17,8 @@ struct cpu
         u16 pc;
     } registers;
     bool intr_pending[0x3];
-
+    bool nmi_ocurred;
+    u8 open_bus;
     u8 cycles;
     bool uoc;
 };
