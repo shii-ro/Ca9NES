@@ -365,7 +365,7 @@ void cpu_interrupt(struct nes *nes, u16 vector, u8 request)
 {
     PUSH16(PC);
     PUSH8(S);
-    if (request)
+    if (request  != 2)
         nes->cpu.registers.s |= STATUS_ID;
     nes->cpu.intr_pending[request] = false;
     nes->cpu.registers.pc = READ16(vector);
@@ -387,16 +387,17 @@ u8 cpu_execute(struct nes *nes)
     u8 op_value;
     u8 opcode;
 
-    // if(nes->test_toogle)printf("%04X\t", PC);
+    if(nes->test_toogle)printf("%04X\t", PC);
     opcode = READ8(PC++);
-    // if(nes->test_toogle)printf("%02X A: %02X X: %02X Y: %02X S: %02X SP: %02X CYC: %d \n",
-    //        opcode,
-    //        A,
-    //        X,
-    //        Y,
-    //        S,
-    //        SP,
-    //        nes->total_cycles);
+    if(nes->test_toogle)printf("%02X A: %02X X: %02X Y: %02X S: %02X SP: %02X PIXEL: %03d CYC: %d  \n",
+           opcode,
+           A,
+           X,
+           Y,
+           S,
+           SP,
+           nes->ppu.cycles,
+           nes->total_cycles);
     // getchar();
     //printf("%02x %02x %02x %02x %02x %02x\n", nes->ram[SP], nes->ram[SP + 1], nes->ram[SP + 2], nes->ram[SP + 3],  nes->ram[SP+ 4],  nes->ram[SP + 5]);
     switch (opcode)
@@ -599,8 +600,7 @@ void cpu_init(struct nes *nes)
     memset(&nes->cpu, 0, sizeof(struct cpu));
     nes->cpu.cycles = 0;
     nes->cpu.registers.pc = 0x0000;
-    nes->cpu.registers.s = 0x34;
+    nes->cpu.registers.s = 0x4;
     nes->cpu.intr_pending[0] = true;
     A = X = Y = 0;
-    SP = 0xFD;
 }

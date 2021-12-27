@@ -4,10 +4,11 @@
 #include "common.h"
 #include "nes.h"
 #include "cart.h"
-#include "mappers/mapper00.c"
-#include "mappers/mapper01.c"
+#include "mappers/nrom.c"
+#include "mappers/sxrom.c"
 #include "mappers/uxrom.c"
-#include "mappers/mapper03.c"
+#include "mappers/txrom.c"
+#include "mappers/axrom.c"
 
 
 void cart_load_header(struct nes *nes, FILE *rom )
@@ -83,12 +84,14 @@ void mapper_init(struct nes *nes)
 {
     switch (nes->cart.mapper_index)
     {
-    case 0x00: mapper00_init(nes); break;
-    case 0x01: mapper01_init(nes); break;
+    case 0x00: nrom_init(nes); break;
+    case 0x01: sxrom_init(nes); break;
     case 0x02: uxrom_init(nes); break;
-    case 0x04: mmc3_init(nes); break;
+    case 0x04: txrom_init(nes); break;
+    case 0x07: axrom_init(nes); break;
     default:
         printf("Mapper not implemented: %02x\n", nes->cart.mapper_index);
+        nes->quit = true;
         break;
     }
 }
