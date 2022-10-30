@@ -13,7 +13,8 @@ Background and sprites are almost finished, basic controls are also implemented:
   MMC3
   
 # Previews
-![desuNES 30_10_2022 02_37_38](https://user-images.githubusercontent.com/45200489/198864359-0bf11e34-6a95-476a-87b2-f61016707cc8.png)![desuNES 30_10_2022 02_38_21](https://user-images.githubusercontent.com/45200489/198864367-947097ea-c28d-4446-bd83-4ef9d97fe1d4.png)
+![desuNES 30_10_2022 02_37_38](https://user-images.githubusercontent.com/45200489/198864359-0bf11e34-6a95-476a-87b2-f61016707cc8.png)
+![desuNES 30_10_2022 02_39_11](https://user-images.githubusercontent.com/45200489/198864491-f2d7f13a-a730-47cb-aaef-3b0a47774fdf.png)
 
 ![desuNES 30_10_2022 02_38_21](https://user-images.githubusercontent.com/45200489/198864380-5eb96084-dc91-41c9-9fea-879c29a16be6.png)![desuNES 30_10_2022 02_45_05](https://user-images.githubusercontent.com/45200489/198864425-0d06287d-bf0a-422a-965a-51d6ffdf09b6.png)
   
