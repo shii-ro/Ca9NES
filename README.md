@@ -3,6 +3,8 @@ A WIP NES emulator in C, my main goal was for it to be fast, and as a consequenc
 
 Background and sprites are almost finished, basic controls are also implemented: Arrows and ZXCV keys.
 
+# Usage
+  ./desunes romname
 
 # Mappers implemented at the moment:
   UxROM
